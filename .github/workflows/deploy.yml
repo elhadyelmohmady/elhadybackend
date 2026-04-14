@@ -1,0 +1,25 @@
+name: Easy Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploying to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          password: ${{ secrets.REMOTE_PASSWORD }} # هنا بنستخدم الباسورد مباشرة
+          port: 22
+          script: |
+            cd /home/api-mobile.elhadyelmohmady.com/public_html
+            
+            git pull origin main
+            
+            npm install
+            
+            pm2 restart mobile-api-prod
