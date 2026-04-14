@@ -16,12 +16,13 @@ jobs:
           password: ${{ secrets.REMOTE_PASSWORD }} # هنا بنستخدم الباسورد مباشرة
           port: 22
           script: |
+            export PATH=/root/.nvm/versions/node/v24.14.1/bin:$PATH
+            
             git config --global --add safe.directory /home/api-mobile.elhadyelmohmady.com/public_html
             
             cd /home/api-mobile.elhadyelmohmady.com/public_html
             
             git pull origin main
             
-            /root/.nvm/versions/node/v24.14.1/bin/npm install
-            
-            /root/.nvm/versions/node/v24.14.1/bin/pm2 restart mobile-api-prod
+            npm install
+            pm2 restart mobile-api-prod
