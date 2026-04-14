@@ -16,6 +16,7 @@ import categoryRoutes from './routes/categoryRoutes.js';
 import brandRoutes from './routes/brandRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 import { errorMiddleware } from './middleware/errorMiddleware.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +50,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/locations', locationRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Global Error Handler
 app.use(errorMiddleware);
