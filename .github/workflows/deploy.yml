@@ -22,7 +22,6 @@ jobs:
             
             git pull origin main
             
-            export PATH=$PATH:/usr/bin:/usr/local/bin
+            /root/.nvm/versions/node/v24.14.1/bin/npm install
             
-            npm install
-            pm2 restart mobile-api-prod
+            /root/.nvm/versions/node/v24.14.1/bin/pm2 restart mobile-api-prod
