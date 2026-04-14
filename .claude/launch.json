@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ElhadyBackend (Production)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 5151
+    },
+    {
+      "name": "ElhadyBackend (Dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5151
+    }
+  ]
+}
