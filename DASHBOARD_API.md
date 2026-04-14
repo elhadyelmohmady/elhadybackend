@@ -82,38 +82,81 @@ Get token from: `POST /api/dashboard/auth/login`
 | DELETE | `/api/dashboard/products/:id` | `manageProducts` | حذف منتج |
 
 #### Create Product
-**Body:**
-```json
-{
-  "name": "اسم المنتج",
-  "price": 100,
-  "stock": 50,
-  "brand": "brand_id_here",
-  "categories": ["category_id_1", "category_id_2"],
-  "keywords": ["كلمة1", "كلمة2"],
-  "image": "https://example.com/image.jpg",
-  "metadata": {
-    "description": "وصف المنتج"
-  }
-}
+**Content-Type:** `multipart/form-data`
+
+**Form Data Fields:**
+- `name` (text, required): اسم المنتج
+- `price` (number, required): السعر
+- `stock` (number, required): المخزون
+- `brand` (text, required): معرف العلامة التجارية
+- `categories` (text, optional): معرفات التصنيفات (يمكن إرسالها كـ array)
+- `keywords` (text, optional): الكلمات المفتاحية (يمكن إرسالها كـ array)
+- `image` (file, optional): صورة المنتج (JPEG, PNG, GIF, WebP - max 5MB)
+- `metadata` (text, optional): بيانات إضافية بصيغة JSON string
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:3000/api/dashboard/products \
+  -H "Authorization: Bearer <token>" \
+  -F "name=منتج جديد" \
+  -F "price=100" \
+  -F "stock=50" \
+  -F "brand=brand_id_here" \
+  -F "categories=category_id_1" \
+  -F "categories=category_id_2" \
+  -F "keywords=كلمة1" \
+  -F "keywords=كلمة2" \
+  -F "image=@/path/to/product-image.jpg" \
+  -F 'metadata={"description": "وصف المنتج"}'
+```
+
+**Example (JavaScript/Fetch):**
+```javascript
+const formData = new FormData();
+formData.append('name', 'منتج جديد');
+formData.append('price', 100);
+formData.append('stock', 50);
+formData.append('brand', 'brand_id_here');
+formData.append('categories', 'category_id_1');
+formData.append('categories', 'category_id_2');
+formData.append('keywords', 'كلمة1');
+formData.append('keywords', 'كلمة2');
+formData.append('image', fileInput.files[0]); // File from input
+formData.append('metadata', JSON.stringify({ description: 'وصف المنتج' }));
+
+const response = await fetch('/api/dashboard/products', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer <token>'
+  },
+  body: formData
+});
 ```
 
 #### Update Product
-**Body:** (جميع الحقول اختيارية)
-```json
-{
-  "name": "اسم جديد",
-  "price": 150,
-  "stock": 30,
-  "brand": "new_brand_id",
-  "categories": ["new_category_id"],
-  "keywords": ["كلمة جديدة"],
-  "image": "https://example.com/new-image.jpg",
-  "metadata": {
-    "description": "وصف جديد"
-  }
-}
+**Content-Type:** `multipart/form-data`
+
+**Form Data Fields:**
+- All fields are optional
+- `name` (text): اسم جديد
+- `price` (number): السعر الجديد
+- `stock` (number): المخزون الجديد
+- `brand` (text): معرف العلامة التجارية الجديد
+- `categories` (text): معرفات التصنيفات الجديدة
+- `keywords` (text): الكلمات المفتاحية الجديدة
+- `image` (file): صورة جديدة (ستحل محل الصورة القديمة)
+- `metadata` (text): بيانات إضافية بصيغة JSON string
+
+**Example (cURL):**
+```bash
+curl -X PUT http://localhost:3000/api/dashboard/products/product_id \
+  -H "Authorization: Bearer <token>" \
+  -F "name=اسم جديد" \
+  -F "price=150" \
+  -F "image=@/path/to/new-image.jpg"
 ```
+
+**Note:** When uploading a new image, the old image will be automatically deleted.
 
 ---
 
@@ -164,26 +207,61 @@ Get token from: `POST /api/dashboard/auth/login`
 | DELETE | `/api/dashboard/brands/:id` | `manageBrands` | حذف علامة تجارية |
 
 #### Create Brand
-**Body:**
-```json
-{
-  "name": "اسم العلامة التجارية",
-  "slug": "brand-slug",
-  "description": "وصف العلامة التجارية",
-  "logo": "https://example.com/logo.png"
-}
+**Content-Type:** `multipart/form-data`
+
+**Form Data Fields:**
+- `name` (text, required): اسم العلامة التجارية
+- `slug` (text, required): الرابط الفريد (slug)
+- `description` (text, optional): وصف العلامة التجارية
+- `logo` (file, optional): شعار العلامة التجارية (JPEG, PNG, GIF, WebP - max 5MB)
+
+**Example (cURL):**
+```bash
+curl -X POST http://localhost:3000/api/dashboard/brands \
+  -H "Authorization: Bearer <token>" \
+  -F "name=Samsung" \
+  -F "slug=samsung" \
+  -F "description=Samsung Electronics" \
+  -F "logo=@/path/to/logo.png"
+```
+
+**Example (JavaScript/Fetch):**
+```javascript
+const formData = new FormData();
+formData.append('name', 'Samsung');
+formData.append('slug', 'samsung');
+formData.append('description', 'Samsung Electronics');
+formData.append('logo', fileInput.files[0]); // File from input
+
+const response = await fetch('/api/dashboard/brands', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer <token>'
+  },
+  body: formData
+});
 ```
 
 #### Update Brand
-**Body:** (جميع الحقول اختيارية)
-```json
-{
-  "name": "اسم جديد",
-  "slug": "new-slug",
-  "description": "وصف جديد",
-  "logo": "https://example.com/new-logo.png"
-}
+**Content-Type:** `multipart/form-data`
+
+**Form Data Fields:**
+- All fields are optional
+- `name` (text): اسم جديد
+- `slug` (text): رابط جديد (slug)
+- `description` (text): وصف جديد
+- `logo` (file): شعار جديد (سيحل محل الشعار القديم)
+
+**Example (cURL):**
+```bash
+curl -X PUT http://localhost:3000/api/dashboard/brands/brand_id \
+  -H "Authorization: Bearer <token>" \
+  -F "name=New Brand Name" \
+  -F "slug=new-slug" \
+  -F "logo=@/path/to/new-logo.png"
 ```
+
+**Note:** When uploading a new logo, the old logo will be automatically deleted.
 
 ---
 
@@ -366,17 +444,30 @@ Content-Type: application/json
 
 ### 4. Create Product
 ```bash
-POST /api/dashboard/products
-Authorization: Bearer <token>
-Content-Type: application/json
+# With image file
+curl -X POST /api/dashboard/products \
+  -H "Authorization: Bearer <token>" \
+  -F "name=منتج جديد" \
+  -F "price=99.99" \
+  -F "stock=100" \
+  -F "brand=brand_id" \
+  -F "categories=category_id_1" \
+  -F "image=@/path/to/image.jpg"
 
-{
-  "name": "منتج جديد",
-  "price": 99.99,
-  "stock": 100,
-  "brand": "brand_id",
-  "categories": ["category_id_1"]
-}
+# Or using FormData in JavaScript
+const formData = new FormData();
+formData.append('name', 'منتج جديد');
+formData.append('price', 99.99);
+formData.append('stock', 100);
+formData.append('brand', 'brand_id');
+formData.append('categories', 'category_id_1');
+formData.append('image', imageFile);
+
+fetch('/api/dashboard/products', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer <token>' },
+  body: formData
+});
 ```
 
 ### 5. Update Order Status
@@ -406,16 +497,26 @@ Content-Type: application/json
 
 ### 7. Create Brand
 ```bash
-POST /api/dashboard/brands
-Authorization: Bearer <token>
-Content-Type: application/json
+# With logo file
+curl -X POST /api/dashboard/brands \
+  -H "Authorization: Bearer <token>" \
+  -F "name=Samsung" \
+  -F "slug=samsung" \
+  -F "description=Samsung Electronics" \
+  -F "logo=@/path/to/logo.png"
 
-{
-  "name": "Samsung",
-  "slug": "samsung",
-  "description": "Samsung Electronics",
-  "logo": "https://example.com/samsung-logo.png"
-}
+# Or using FormData in JavaScript
+const formData = new FormData();
+formData.append('name', 'Samsung');
+formData.append('slug', 'samsung');
+formData.append('description', 'Samsung Electronics');
+formData.append('logo', logoFile);
+
+fetch('/api/dashboard/brands', {
+  method: 'POST',
+  headers: { 'Authorization': 'Bearer <token>' },
+  body: formData
+});
 ```
 
 ---
@@ -437,6 +538,238 @@ Content-Type: application/json
 2. **Store token** → localStorage/cookies
 3. **Add token to headers** → `Authorization: Bearer <token>`
 4. **Start making requests** → All endpoints above
+
+---
+
+## 📸 Image Upload System
+
+### Supported Endpoints
+Image uploads are supported for the following endpoints:
+- **Products**: `POST/PUT /api/dashboard/products` (field: `image`)
+- **Brands**: `POST/PUT /api/dashboard/brands` (field: `logo`)
+
+### Image Specifications
+- **Supported formats**: JPEG, JPG, PNG, GIF, WebP
+- **Maximum file size**: 5MB
+- **Product images**: Optimized to max 1200x1200px, converted to WebP (quality: 80)
+- **Brand logos**: Optimized to max 500x500px, converted to WebP (quality: 85)
+
+### How It Works
+
+1. **Upload**: Send image via `multipart/form-data` in the appropriate field (`image` for products, `logo` for brands)
+2. **Processing**: Images are automatically:
+   - Validated (format and size)
+   - Resized if exceeding maximum dimensions
+   - Converted to WebP format for optimal performance
+   - Saved with unique filenames
+3. **Storage**: Images are stored in:
+   - Products: `src/assets/product_images/`
+   - Brands: `src/assets/brand_logos/`
+4. **Database**: Relative paths are stored in the database (e.g., `src/assets/product_images/product-1234567890-123456789-optimized.webp`)
+5. **Replacement**: When updating with a new image, the old image is automatically deleted
+
+### Frontend Implementation
+
+#### HTML Form Example
+```html
+<!-- Product Form -->
+<form id="productForm" enctype="multipart/form-data">
+  <input type="text" name="name" placeholder="Product Name" required>
+  <input type="number" name="price" placeholder="Price" required>
+  <input type="number" name="stock" placeholder="Stock" required>
+  <input type="text" name="brand" placeholder="Brand ID" required>
+  <input type="file" name="image" accept="image/*">
+  <button type="submit">Create Product</button>
+</form>
+
+<!-- Brand Form -->
+<form id="brandForm" enctype="multipart/form-data">
+  <input type="text" name="name" placeholder="Brand Name" required>
+  <input type="text" name="slug" placeholder="Slug" required>
+  <input type="text" name="description" placeholder="Description">
+  <input type="file" name="logo" accept="image/*">
+  <button type="submit">Create Brand</button>
+</form>
+```
+
+#### React Example
+```jsx
+import { useState } from 'react';
+
+function ProductForm() {
+  const [formData, setFormData] = useState({
+    name: '',
+    price: '',
+    stock: '',
+    brand: '',
+    categories: [],
+    keywords: []
+  });
+  const [image, setImage] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const data = new FormData();
+    data.append('name', formData.name);
+    data.append('price', formData.price);
+    data.append('stock', formData.stock);
+    data.append('brand', formData.brand);
+    
+    formData.categories.forEach(cat => {
+      data.append('categories', cat);
+    });
+    
+    formData.keywords.forEach(keyword => {
+      data.append('keywords', keyword);
+    });
+    
+    if (image) {
+      data.append('image', image);
+    }
+
+    const response = await fetch('/api/dashboard/products', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: data
+    });
+
+    const result = await response.json();
+    // Handle response
+  };
+
+  return (
+    <form onSubmit={handleSubmit} encType="multipart/form-data">
+      <input
+        type="text"
+        value={formData.name}
+        onChange={(e) => setFormData({...formData, name: e.target.value})}
+        placeholder="Product Name"
+        required
+      />
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setImage(e.target.files[0])}
+      />
+      <button type="submit">Create</button>
+    </form>
+  );
+}
+```
+
+#### Vue.js Example
+```vue
+<template>
+  <form @submit.prevent="submitForm" enctype="multipart/form-data">
+    <input v-model="form.name" type="text" placeholder="Brand Name" required>
+    <input v-model="form.slug" type="text" placeholder="Slug" required>
+    <input @change="handleFileChange" type="file" accept="image/*">
+    <button type="submit">Create Brand</button>
+  </form>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      form: {
+        name: '',
+        slug: '',
+        description: ''
+      },
+      logo: null
+    };
+  },
+  methods: {
+    handleFileChange(e) {
+      this.logo = e.target.files[0];
+    },
+    async submitForm() {
+      const formData = new FormData();
+      formData.append('name', this.form.name);
+      formData.append('slug', this.form.slug);
+      formData.append('description', this.form.description);
+      
+      if (this.logo) {
+        formData.append('logo', this.logo);
+      }
+
+      const response = await fetch('/api/dashboard/brands', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`
+        },
+        body: formData
+      });
+
+      const result = await response.json();
+      // Handle response
+    }
+  }
+};
+</script>
+```
+
+### Error Handling
+
+The API returns appropriate error messages for upload failures:
+
+**File too large:**
+```json
+{
+  "success": false,
+  "message": "File size too large. Maximum size is 5MB"
+}
+```
+
+**Invalid file type:**
+```json
+{
+  "success": false,
+  "message": "Only image files (JPEG, PNG, GIF, WebP) are allowed"
+}
+```
+
+**Processing error:**
+```json
+{
+  "success": false,
+  "message": "Failed to process product image"
+}
+```
+
+### Important Notes
+
+1. **Content-Type**: When sending files, you MUST use `multipart/form-data`, NOT `application/json`
+2. **Field names**: Use `image` for products and `logo` for brands
+3. **Multiple values**: For arrays (categories, keywords), send multiple fields with the same name
+4. **Metadata**: Send JSON objects as stringified JSON in a text field
+5. **Automatic cleanup**: Old images/logos are automatically deleted when replaced
+6. **Image optimization**: All images are automatically optimized and converted to WebP for better performance
+7. **Accessing images**: Images are served from the `src/assets` directory. Configure static file serving in your app to access them.
+
+### Static File Serving Configuration
+
+To access uploaded images in your frontend, configure static file serving in your Express app:
+
+```javascript
+// In app.js or server.js
+import express from 'express';
+import path from 'path';
+
+const app = express();
+
+// Serve uploaded images
+app.use('/uploads/products', express.static(path.join(process.cwd(), 'src/assets/product_images')));
+app.use('/uploads/brands', express.static(path.join(process.cwd(), 'src/assets/brand_logos')));
+```
+
+Then access images at:
+- Products: `http://localhost:3000/uploads/products/filename.webp`
+- Brands: `http://localhost:3000/uploads/brands/filename.webp`
 
 ---
 

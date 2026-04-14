@@ -6,6 +6,7 @@ import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { processProductImage, processBrandLogo, deleteFile } from '../utils/imageUpload.js';
 
 // @desc    Admin login
 // @route   POST /api/dashboard/auth/login
@@ -474,44 +475,85 @@ export const getProduct = async (req, res) => {
 // @route   POST /api/dashboard/products
 // @access  Private (manageProducts permission)
 export const createProduct = async (req, res) => {
-    const { name, price, stock, brand, categories, keywords, image, metadata } = req.body;
+    try {
+        const { name, price, stock, brand, categories, keywords, metadata } = req.body;
+        let image = req.body.image || null;
 
-    const product = await Product.create({
-        name,
-        price,
-        stock,
-        brand,
-        categories,
-        keywords,
-        image,
-        metadata
-    });
+        // Process uploaded image if present
+        if (req.file) {
+            try {
+                image = await processProductImage(req.file);
+            } catch (error) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to process product image' 
+                });
+            }
+        }
 
-    res.status(201).json({ success: true, data: product });
+        const product = await Product.create({
+            name,
+            price,
+            stock,
+            brand,
+            categories: categories ? (Array.isArray(categories) ? categories : [categories]) : [],
+            keywords: keywords ? (Array.isArray(keywords) ? keywords : [keywords]) : [],
+            image,
+            metadata: metadata ? (typeof metadata === 'string' ? JSON.parse(metadata) : metadata) : {}
+        });
+
+        res.status(201).json({ success: true, data: product });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // @desc    Update product
 // @route   PUT /api/dashboard/products/:id
 // @access  Private (manageProducts permission)
 export const updateProduct = async (req, res) => {
-    const { name, price, stock, brand, categories, keywords, image, metadata } = req.body;
+    try {
+        const { name, price, stock, brand, categories, keywords, metadata } = req.body;
 
-    const product = await Product.findById(req.params.id);
-    if (!product) {
-        return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
+        const product = await Product.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
+        }
+
+        let image = product.image;
+
+        // Process uploaded image if present
+        if (req.file) {
+            try {
+                // Delete old image if exists
+                if (product.image) {
+                    await deleteFile(product.image);
+                }
+                
+                // Process new image
+                image = await processProductImage(req.file);
+            } catch (error) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to process product image' 
+                });
+            }
+        }
+
+        if (name) product.name = name;
+        if (price !== undefined) product.price = price;
+        if (stock !== undefined) product.stock = stock;
+        if (brand !== undefined) product.brand = brand;
+        if (categories !== undefined) product.categories = Array.isArray(categories) ? categories : [categories];
+        if (keywords !== undefined) product.keywords = Array.isArray(keywords) ? keywords : [keywords];
+        if (image !== undefined) product.image = image;
+        if (metadata !== undefined) product.metadata = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+
+        await product.save();
+        res.json({ success: true, data: product });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    if (name) product.name = name;
-    if (price !== undefined) product.price = price;
-    if (stock !== undefined) product.stock = stock;
-    if (brand !== undefined) product.brand = brand;
-    if (categories !== undefined) product.categories = categories;
-    if (keywords !== undefined) product.keywords = keywords;
-    if (image !== undefined) product.image = image;
-    if (metadata !== undefined) product.metadata = metadata;
-
-    await product.save();
-    res.json({ success: true, data: product });
 };
 
 // @desc    Delete product
@@ -739,49 +781,87 @@ export const getBrand = async (req, res) => {
 // @route   POST /api/dashboard/brands
 // @access  Private (manageBrands permission)
 export const createBrand = async (req, res) => {
-    const { name, slug, description, logo } = req.body;
+    try {
+        const { name, slug, description } = req.body;
+        let logo = req.body.logo || null;
 
-    const existingBrand = await Brand.findOne({ slug });
-    if (existingBrand) {
-        return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+        // Process uploaded logo if present
+        if (req.file) {
+            try {
+                logo = await processBrandLogo(req.file);
+            } catch (error) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to process brand logo' 
+                });
+            }
+        }
+
+        const existingBrand = await Brand.findOne({ slug });
+        if (existingBrand) {
+            return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+        }
+
+        const brand = await Brand.create({
+            name,
+            slug,
+            description,
+            logo
+        });
+
+        res.status(201).json({ success: true, data: brand });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    const brand = await Brand.create({
-        name,
-        slug,
-        description,
-        logo
-    });
-
-    res.status(201).json({ success: true, data: brand });
 };
 
 // @desc    Update brand
 // @route   PUT /api/dashboard/brands/:id
 // @access  Private (manageBrands permission)
 export const updateBrand = async (req, res) => {
-    const { name, slug, description, logo } = req.body;
+    try {
+        const { name, slug, description } = req.body;
 
-    const brand = await Brand.findById(req.params.id);
-    if (!brand) {
-        return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
-    }
-
-    // Check for duplicate slug
-    if (slug && slug !== brand.slug) {
-        const existing = await Brand.findOne({ slug });
-        if (existing) {
-            return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+        const brand = await Brand.findById(req.params.id);
+        if (!brand) {
+            return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
         }
+
+        // Check for duplicate slug
+        if (slug && slug !== brand.slug) {
+            const existing = await Brand.findOne({ slug });
+            if (existing) {
+                return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+            }
+        }
+
+        // Process uploaded logo if present
+        if (req.file) {
+            try {
+                // Delete old logo if exists
+                if (brand.logo) {
+                    await deleteFile(brand.logo);
+                }
+                
+                // Process new logo
+                brand.logo = await processBrandLogo(req.file);
+            } catch (error) {
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to process brand logo' 
+                });
+            }
+        }
+
+        if (name) brand.name = name;
+        if (slug) brand.slug = slug;
+        if (description) brand.description = description;
+
+        await brand.save();
+        res.json({ success: true, data: brand });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    if (name) brand.name = name;
-    if (slug) brand.slug = slug;
-    if (description) brand.description = description;
-    if (logo !== undefined) brand.logo = logo;
-
-    await brand.save();
-    res.json({ success: true, data: brand });
 };
 
 // @desc    Delete brand

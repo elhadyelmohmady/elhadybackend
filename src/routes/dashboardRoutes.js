@@ -34,6 +34,7 @@ import {
     deleteBrand
 } from '../controllers/dashboardController.js';
 import { authenticateDashboard, requirePermission, requireRole } from '../middleware/dashboardAuth.js';
+import { productUpload, brandUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
 
 const router = express.Router();
 
@@ -74,8 +75,8 @@ router.put('/orders/:id/status', requirePermission('manageOrders'), updateOrderS
 // ==================== PRODUCT MANAGEMENT ====================
 router.get('/products', requirePermission('viewProducts'), getProducts);
 router.get('/products/:id', requirePermission('viewProducts'), getProduct);
-router.post('/products', requirePermission('manageProducts'), createProduct);
-router.put('/products/:id', requirePermission('manageProducts'), updateProduct);
+router.post('/products', requirePermission('manageProducts'), productUpload.single('image'), handleUploadError, createProduct);
+router.put('/products/:id', requirePermission('manageProducts'), productUpload.single('image'), handleUploadError, updateProduct);
 router.delete('/products/:id', requirePermission('manageProducts'), deleteProduct);
 
 // ==================== CATEGORY MANAGEMENT ====================
@@ -88,8 +89,8 @@ router.delete('/categories/:id', requirePermission('manageCategories'), deleteCa
 // ==================== BRAND MANAGEMENT ====================
 router.get('/brands', requirePermission('viewBrands'), getBrands);
 router.get('/brands/:id', requirePermission('viewBrands'), getBrand);
-router.post('/brands', requirePermission('manageBrands'), createBrand);
-router.put('/brands/:id', requirePermission('manageBrands'), updateBrand);
+router.post('/brands', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, createBrand);
+router.put('/brands/:id', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, updateBrand);
 router.delete('/brands/:id', requirePermission('manageBrands'), deleteBrand);
 
 export default router;
