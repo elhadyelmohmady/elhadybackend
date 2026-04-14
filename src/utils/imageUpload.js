@@ -1,6 +1,12 @@
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs/promises';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.join(__dirname, '..');
 
 /**
  * Optimize and resize uploaded image
@@ -59,25 +65,44 @@ export const optimizeImage = async (filePath, options = {}) => {
 
 /**
  * Get relative path for storing in database
+ * Returns path like: product_images/filename.webp or brand_logos/filename.webp
+ * This matches the static file serving in app.js
+ * 
  * @param {string} absolutePath - Absolute file path
- * @returns {string} Relative path
+ * @returns {string} Relative path for database storage
  */
 export const getRelativePath = (absolutePath) => {
-    const projectRoot = process.cwd();
-    return path.relative(projectRoot, absolutePath);
+    // Extract only the subfolder and filename (e.g., "product_images/filename.webp")
+    // This ensures it works with static file serving: /product_images -> src/assets/product_images
+    const parts = absolutePath.split(path.sep);
+    const assetsIndex = parts.indexOf('assets');
+    
+    if (assetsIndex !== -1 && assetsIndex < parts.length - 1) {
+        // Return everything after 'assets' folder
+        return parts.slice(assetsIndex + 1).join(path.sep);
+    }
+    
+    // Fallback: just return the filename with subfolder
+    return path.basename(absolutePath);
 };
 
 /**
  * Delete uploaded file
- * @param {string} filePath - Path to file to delete
+ * @param {string} filePath - Path from database (e.g., "product_images/filename.webp")
  */
 export const deleteFile = async (filePath) => {
     try {
-        if (filePath && fs) {
-            const absolutePath = path.isAbsolute(filePath) 
-                ? filePath 
-                : path.join(process.cwd(), filePath);
+        if (filePath) {
+            let absolutePath;
             
+            if (path.isAbsolute(filePath)) {
+                absolutePath = filePath;
+            } else {
+                // Path from database: "product_images/filename.webp"
+                // Need to resolve to: src/assets/product_images/filename.webp
+                absolutePath = path.join(__dirname, '..', 'assets', filePath);
+            }
+
             if (await fs.stat(absolutePath).catch(() => false)) {
                 await fs.unlink(absolutePath);
             }

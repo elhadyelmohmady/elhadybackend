@@ -1,11 +1,19 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Use absolute paths based on __dirname (works on all platforms)
+// Go up one level from src/middleware to src, then to assets
+const assetsDir = path.join(__dirname, '..', 'assets');
+const productUploadDir = path.join(assetsDir, 'product_images');
+const brandUploadDir = path.join(assetsDir, 'brand_logos');
 
 // Ensure upload directories exist
-const productUploadDir = path.join(process.cwd(), 'src/assets/product_images');
-const brandUploadDir = path.join(process.cwd(), 'src/assets/brand_logos');
-
 if (!fs.existsSync(productUploadDir)) {
     fs.mkdirSync(productUploadDir, { recursive: true });
 }

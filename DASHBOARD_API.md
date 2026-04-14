@@ -749,7 +749,38 @@ The API returns appropriate error messages for upload failures:
 4. **Metadata**: Send JSON objects as stringified JSON in a text field
 5. **Automatic cleanup**: Old images/logos are automatically deleted when replaced
 6. **Image optimization**: All images are automatically optimized and converted to WebP for better performance
-7. **Accessing images**: Images are served from the `src/assets` directory. Configure static file serving in your app to access them.
+7. **Path Resolution**: Paths are stored relative to assets folder (e.g., `product_images/filename.webp`)
+
+### Accessing Uploaded Images
+
+Images are stored in `src/assets/` and served via static file serving configured in `app.js`:
+
+```javascript
+// app.js configuration
+app.use('/product_images', express.static(path.join(__dirname, 'src/assets/product_images')));
+app.use('/brand_logos', express.static(path.join(__dirname, 'src/assets/brand_logos')));
+```
+
+**Database stores:** `product_images/product-1234567890-optimized.webp`
+
+**Access via URL:**
+```
+http://localhost:3000/product_images/product-1234567890-optimized.webp
+http://localhost:3000/brand_logos/brand-1234567890-optimized.webp
+```
+
+**Frontend example:**
+```javascript
+// Convert database path to URL
+function getImageUrl(imagePath) {
+  if (!imagePath) return null;
+  // imagePath: "product_images/filename.webp"
+  return `${BASE_URL}/${imagePath}`;
+}
+
+// Usage
+<img src={getImageUrl(product.image)} alt={product.name} />
+```
 
 ### Static File Serving Configuration
 
