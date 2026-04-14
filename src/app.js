@@ -31,9 +31,13 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(requestLogger);
 
-// Serve product images as static files
-app.use('/product_images', express.static(path.join(__dirname, 'assets/product_images')));
-app.use('/brand_logos', express.static(path.join(__dirname, 'assets/brand_logos')));
+// Serve static files with CORS headers
+const staticCorsHeaders = (res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+};
+app.use('/product_images', express.static(path.join(__dirname, 'assets/product_images'), { setHeaders: staticCorsHeaders }));
+app.use('/brand_logos', express.static(path.join(__dirname, 'assets/brand_logos'), { setHeaders: staticCorsHeaders }));
+app.use('/brand_images', express.static(path.join(__dirname, 'assets/brand_images'), { setHeaders: staticCorsHeaders }));
 
 // AdminJS Dashboard (authenticated)
 app.use(adminJS.options.rootPath, adminRouter);
