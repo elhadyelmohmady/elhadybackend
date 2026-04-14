@@ -34,6 +34,7 @@ app.use(requestLogger);
 // Serve static files with CORS headers
 const staticCorsHeaders = (res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 };
 app.use('/product_images', express.static(path.join(__dirname, 'assets/product_images'), { setHeaders: staticCorsHeaders }));
 app.use('/brand_logos', express.static(path.join(__dirname, 'assets/brand_logos'), { setHeaders: staticCorsHeaders }));
