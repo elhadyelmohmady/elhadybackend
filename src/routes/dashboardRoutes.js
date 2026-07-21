@@ -38,6 +38,16 @@ import { productUpload, brandUpload, handleUploadError } from '../middleware/upl
 
 import accountRoutes from './accountRoutes.js';
 import { getFinancialOverview } from '../controllers/accountController.js';
+import {
+    getDashboardNotifications,
+    getDashboardUnreadCount,
+    markDashboardNotificationAsRead,
+    markAllDashboardNotificationsAsRead,
+    deleteDashboardNotification,
+    getTelegramConfig,
+    updateTelegramConfig,
+    testTelegramConfig
+} from '../controllers/notificationController.js';
 
 const router = express.Router();
 
@@ -97,5 +107,15 @@ router.get('/brands/:id', requirePermission('viewBrands'), getBrand);
 router.post('/brands', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, createBrand);
 router.put('/brands/:id', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, updateBrand);
 router.delete('/brands/:id', requirePermission('manageBrands'), deleteBrand);
+
+// ==================== NOTIFICATION MANAGEMENT ====================
+router.get('/notifications', getDashboardNotifications);
+router.get('/notifications/unread-count', getDashboardUnreadCount);
+router.patch('/notifications/read-all', markAllDashboardNotificationsAsRead);
+router.patch('/notifications/:id/read', markDashboardNotificationAsRead);
+router.delete('/notifications/:id', deleteDashboardNotification);
+router.get('/notifications/telegram-config', getTelegramConfig);
+router.put('/notifications/telegram-config', updateTelegramConfig);
+router.post('/notifications/test-telegram', testTelegramConfig);
 
 export default router;

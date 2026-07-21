@@ -4,6 +4,7 @@ import Setting from '../models/Setting.js';
 import SavedLocation from '../models/SavedLocation.js';
 import User from '../models/User.js';
 import { getUserAccountSummary, recordTransaction } from '../services/accountService.js';
+import { notifyNewOrder, notifyOrderCancelled } from '../services/notificationService.js';
 
 // Shipping types with delivery day ranges
 const SHIPPING_TYPES = {
@@ -174,7 +175,12 @@ export const createOrder = async (req, res) => {
     // Populate for response
     const populated = await Order.findById(order._id)
         .populate('items.product', 'name image price')
-        .populate('customer', 'fullName phoneNumber');
+        .populate('customer', 'fullName phoneNumber username');
+
+    // Trigger Telegram and In-App notification
+    notifyNewOrder(populated, populated.customer).catch(err => {
+        console.error('Error triggering new order notification:', err.message);
+    });
 
     res.status(201).json({
         message: 'تم إنشاء الطلب بنجاح',
@@ -274,6 +280,11 @@ export const cancelOrder = async (req, res) => {
         amount: order.total,
         orderId: order._id,
         notes: `إلغاء الطلب رقم #${order._id}`
+    });
+
+    // Trigger Telegram notification
+    notifyOrderCancelled(order, req.user, 'العميل').catch(err => {
+        console.error('Error triggering order cancelled notification:', err.message);
     });
 
     res.json({ message: 'تم إلغاء الطلب بنجاح', data: order });

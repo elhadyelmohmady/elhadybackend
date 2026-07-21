@@ -24,6 +24,20 @@ Get token from: `POST /api/dashboard/auth/login`
 | GET | `/api/dashboard/orders/:id` | `viewOrders` | تفاصيل طلب واحد |
 | PUT | `/api/dashboard/orders/:id/status` | `manageOrders` | تغيير حالة طلب |
 
+---
+
+### 🔔 **Notifications & Telegram Integration**
+| Method | Endpoint | Permission | الوصف |
+|--------|----------|------------|-------|
+| GET | `/api/dashboard/notifications` | Admin | قائمة إشعارات لوحة التحكم |
+| GET | `/api/dashboard/notifications/unread-count` | Admin | عدد الإشعارات غير المقروءة |
+| PATCH | `/api/dashboard/notifications/:id/read` | Admin | تعليم إشعار كمقروء |
+| PATCH | `/api/dashboard/notifications/read-all` | Admin | تعليم الكل كمقروء |
+| DELETE | `/api/dashboard/notifications/:id` | Admin | حذف إشعار |
+| GET | `/api/dashboard/notifications/telegram-config` | Admin | فحص حالة ربط تليجرام |
+| PUT | `/api/dashboard/notifications/telegram-config` | Admin | تحديث توكن وشات تليجرام |
+| POST | `/api/dashboard/notifications/test-telegram` | Admin | إرسال رسالة تجريبية لتليجرام |
+
 #### Change Order Status
 **Body:**
 ```json

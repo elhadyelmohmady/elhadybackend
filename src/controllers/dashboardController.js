@@ -7,6 +7,7 @@ import Brand from '../models/Brand.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { processProductImage, processBrandLogo, deleteFile } from '../utils/imageUpload.js';
+import { notifyOrderStatusChanged, notifyNewUser } from '../services/notificationService.js';
 
 // @desc    Admin login
 // @route   POST /api/dashboard/auth/login
@@ -407,6 +408,13 @@ export const updateOrderStatus = async (req, res) => {
             }
         }));
         await Product.bulkWrite(bulkOps);
+    }
+
+    if (oldStatus !== status) {
+        const populatedOrder = await Order.findById(order._id).populate('customer', 'fullName username phoneNumber');
+        notifyOrderStatusChanged(order, populatedOrder?.customer, oldStatus, status).catch(err => {
+            console.error('Error sending order status notification:', err.message);
+        });
     }
 
     res.json({ success: true, data: order });

@@ -1,6 +1,7 @@
 import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
 import { processUserPayment } from '../services/accountService.js';
+import { notifyNewPayment } from '../services/notificationService.js';
 
 // Record a payment for an order or account (Admin only)
 export const recordPayment = async (req, res) => {
@@ -34,10 +35,14 @@ export const recordPayment = async (req, res) => {
             notes: notes?.trim()
         });
 
-        const updatedOrder = await Order.findById(orderId);
+        const updatedOrder = await Order.findById(orderId).populate('customer', 'fullName username phoneNumber');
 
         const populatedPayment = await Payment.findById(result.payment._id)
             .populate('recordedBy', 'username fullName');
+
+        notifyNewPayment(populatedPayment, updatedOrder, updatedOrder?.customer, req.admin).catch(err => {
+            console.error('Error sending payment notification:', err.message);
+        });
 
         res.status(201).json({
             message: 'تم تسجيل الدفع بنجاح',

@@ -12,6 +12,14 @@ const settingSchema = new mongoose.Schema({
         required: true,
         default: 100,
         min: 0
+    },
+    telegramBotToken: {
+        type: String,
+        default: ''
+    },
+    telegramChatId: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true
