@@ -161,13 +161,23 @@ export const createOrder = async (req, res) => {
         estimatedDeliveryDays: deliveryDays
     });
 
+    // Map Order paymentMethod enum → Transaction paymentMethod enum
+    const paymentMethodMap = {
+        cash_on_delivery: 'cash',
+        credit: 'deferred',
+        deferred: 'deferred',
+        online: 'online',
+        bank_transfer: 'bank_transfer',
+    };
+    const transactionPaymentMethod = paymentMethodMap[requestedPaymentMethod] || 'other';
+
     // Log financial ledger transaction for the user
     await recordTransaction({
         userId: customerId,
         type: 'order_debit',
         amount: total,
         orderId: order._id,
-        paymentMethod: requestedPaymentMethod,
+        paymentMethod: transactionPaymentMethod,
         transactionDate: order.createdAt,
         notes: `طلب جديد رقم #${order._id} (${requestedPaymentMethod === 'deferred' || requestedPaymentMethod === 'credit' ? 'آجل' : 'نقدي'})`
     });

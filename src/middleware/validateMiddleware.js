@@ -9,10 +9,10 @@ export const validate = (schema) => (req, res, next) => {
         });
         next();
     } catch (error) {
-        const errors = error.errors.map(err => ({
+        const errors = (error && Array.isArray(error.errors)) ? error.errors.map(err => ({
             field: err.path.join('.'),
             message: err.message
-        }));
+        })) : [{ field: 'unknown', message: error.message || 'Validation failed' }];
         next(new ApiError('Validation Error', 400, errors));
     }
 };
