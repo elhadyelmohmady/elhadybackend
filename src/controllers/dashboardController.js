@@ -416,7 +416,7 @@ export const updateOrderStatus = async (req, res) => {
 // @route   GET /api/dashboard/products
 // @access  Private (viewProducts permission)
 export const getProducts = async (req, res) => {
-    const { page = 1, limit = 20, search, brand, category, lowStock } = req.query;
+    const { page = 1, limit = 20, search, brand, category, lowStock, sort } = req.query;
     const query = {};
 
     if (search) {
@@ -435,10 +435,20 @@ export const getProducts = async (req, res) => {
         query.stock = { $lt: 10 };
     }
 
+    const sortOptions = {
+        name_asc: { name: 1, _id: 1 },
+        name_desc: { name: -1, _id: 1 },
+        price_asc: { price: 1, _id: 1 },
+        price_desc: { price: -1, _id: 1 },
+        created_desc: { createdAt: -1, _id: 1 }
+    };
+    const sortBy = sortOptions[sort] || { name: 1, _id: 1 };
+
     const products = await Product.find(query)
+        .collation({ locale: 'ar' })
         .populate('brand', 'name logo')
         .populate('categories', 'name')
-        .sort({ createdAt: -1, _id: 1 })
+        .sort(sortBy)
         .limit(limit * 1)
         .skip((page - 1) * limit);
 

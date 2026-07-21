@@ -36,6 +36,7 @@ export const getCategoryProducts = async (req, res) => {
 
         const [products, total] = await Promise.all([
             Product.find(query)
+                .collation({ locale: 'ar' })
                 .populate('categories', 'name slug image')
                 .populate('brand', 'name logo')
                 .skip(skip)

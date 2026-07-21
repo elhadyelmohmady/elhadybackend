@@ -27,11 +27,11 @@ export const getProducts = async (req, res) => {
         }
 
         const sortOptions = {
-            price_asc: { price: 1 },
-            price_desc: { price: -1 },
-            most_ordered: { totalOrdered: -1 },
-            name_asc: { name: 1 },
-            name_desc: { name: -1 }
+            price_asc: { price: 1, _id: 1 },
+            price_desc: { price: -1, _id: 1 },
+            most_ordered: { totalOrdered: -1, _id: 1 },
+            name_asc: { name: 1, _id: 1 },
+            name_desc: { name: -1, _id: 1 }
         };
         const baseSort = sortOptions[sort] || { name: 1 };
         const sortBy = { ...baseSort, _id: 1 };
@@ -40,6 +40,7 @@ export const getProducts = async (req, res) => {
 
         const [products, total] = await Promise.all([
             Product.find(query)
+                .collation({ locale: 'ar' })
                 .populate('categories', 'name slug image')
                 .populate('brand', 'name logo')
                 .skip(skip)
