@@ -203,7 +203,7 @@ export const getUsers = async (req, res) => {
 
     const users = await User.find(query)
         .select('-password')
-        .sort('-createdAt')
+        .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
@@ -345,7 +345,7 @@ export const getOrders = async (req, res) => {
     const orders = await Order.find(query)
         .populate('customer', 'username fullName phoneNumber')
         .populate('items.product', 'name image')
-        .sort('-createdAt')
+        .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
@@ -438,7 +438,7 @@ export const getProducts = async (req, res) => {
     const products = await Product.find(query)
         .populate('brand', 'name logo')
         .populate('categories', 'name')
-        .sort('-createdAt')
+        .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
@@ -639,7 +639,7 @@ export const getCategories = async (req, res) => {
     }
 
     const categories = await Category.find(query)
-        .sort('-createdAt')
+        .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
@@ -747,7 +747,7 @@ export const getBrands = async (req, res) => {
     }
 
     const brands = await Brand.find(query)
-        .sort('-createdAt')
+        .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
 

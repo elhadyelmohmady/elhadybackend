@@ -161,7 +161,7 @@ export const getMyOrders = async (req, res) => {
     const [orders, count] = await Promise.all([
         Order.find({ customer: req.user._id })
             .populate('items.product', 'name image price')
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: -1, _id: 1 })
             .skip(skip)
             .limit(limit),
         Order.countDocuments({ customer: req.user._id })

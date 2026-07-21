@@ -123,7 +123,7 @@ export const getAllPayments = async (req, res) => {
             Payment.find()
                 .populate('order', 'total status customer')
                 .populate('recordedBy', 'username fullName')
-                .sort({ paymentDate: -1 })
+                .sort({ paymentDate: -1, _id: 1 })
                 .skip(skip)
                 .limit(limit),
             Payment.countDocuments()
@@ -175,7 +175,7 @@ export const getMyPayments = async (req, res) => {
             Payment.find({ order: { $in: orderIds } })
                 .populate('order', 'total status')
                 .populate('recordedBy', 'username fullName')
-                .sort({ paymentDate: -1 })
+                .sort({ paymentDate: -1, _id: 1 })
                 .skip(skip)
                 .limit(limit),
             Payment.countDocuments({ order: { $in: orderIds } })

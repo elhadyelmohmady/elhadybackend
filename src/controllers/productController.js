@@ -33,7 +33,8 @@ export const getProducts = async (req, res) => {
             name_asc: { name: 1 },
             name_desc: { name: -1 }
         };
-        const sortBy = sortOptions[sort] || { createdAt: -1 };
+        const baseSort = sortOptions[sort] || { name: 1 };
+        const sortBy = { ...baseSort, _id: 1 };
 
         const skip = (page - 1) * limit;
 

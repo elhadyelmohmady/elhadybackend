@@ -47,7 +47,7 @@ export const getBrandProducts = async (req, res) => {
                 .populate('brand', 'name logo')
                 .skip(skip)
                 .limit(Number(limit))
-                .sort({ createdAt: -1 }),
+                .sort({ name: 1, _id: 1 }),
             Product.countDocuments(query)
         ]);
 
