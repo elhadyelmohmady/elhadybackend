@@ -2,6 +2,8 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Setting from '../models/Setting.js';
 import SavedLocation from '../models/SavedLocation.js';
+import User from '../models/User.js';
+import { getUserAccountSummary, recordTransaction } from '../services/accountService.js';
 
 // Shipping types with delivery day ranges
 const SHIPPING_TYPES = {
@@ -89,6 +91,24 @@ export const createOrder = async (req, res) => {
         });
     }
 
+    const requestedPaymentMethod = req.body.paymentMethod || 'cash_on_delivery';
+
+    // Validate deferred / credit payment requirements
+    if (requestedPaymentMethod === 'deferred' || requestedPaymentMethod === 'credit') {
+        const summary = await getUserAccountSummary(customerId);
+        if (!summary.user.isCreditAllowed) {
+            return res.status(400).json({ message: 'عفواً، الدفع بالأجل غير مفعّل لحسابك' });
+        }
+        if (summary.user.creditLimit > 0) {
+            const potentialBalance = summary.financials.currentBalance + total;
+            if (potentialBalance > summary.user.creditLimit) {
+                return res.status(400).json({
+                    message: `تم تجاوز الحد الأقصى للائتمان/الأجل. الحد المسموح: ${summary.user.creditLimit} جنيه، الرصيد الحالي: ${summary.financials.currentBalance} جنيه، إجمالي الطلب: ${total} جنيه`
+                });
+            }
+        }
+    }
+
     // Atomically deduct stock — filter ensures we don't go negative
     const bulkOps = orderItems.map(item => ({
         updateOne: {
@@ -124,10 +144,21 @@ export const createOrder = async (req, res) => {
         items: orderItems,
         total,
         status: 'pending',
-        paymentMethod: req.body.paymentMethod || 'cash_on_delivery',
+        paymentMethod: requestedPaymentMethod,
         address: orderAddress,
         shippingType: shippingType || 'normal',
         estimatedDeliveryDays: deliveryDays
+    });
+
+    // Log financial ledger transaction for the user
+    await recordTransaction({
+        userId: customerId,
+        type: 'order_debit',
+        amount: total,
+        orderId: order._id,
+        paymentMethod: requestedPaymentMethod,
+        transactionDate: order.createdAt,
+        notes: `طلب جديد رقم #${order._id} (${requestedPaymentMethod === 'deferred' || requestedPaymentMethod === 'credit' ? 'آجل' : 'نقدي'})`
     });
 
     // Populate for response
@@ -225,6 +256,15 @@ export const cancelOrder = async (req, res) => {
 
     order.status = 'cancelled';
     await order.save(); // pre-save hook restores stock
+
+    // Revert debt in user account ledger
+    await recordTransaction({
+        userId: req.user._id,
+        type: 'adjustment_credit',
+        amount: order.total,
+        orderId: order._id,
+        notes: `إلغاء الطلب رقم #${order._id}`
+    });
 
     res.json({ message: 'تم إلغاء الطلب بنجاح', data: order });
 };

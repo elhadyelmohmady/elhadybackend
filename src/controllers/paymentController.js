@@ -1,9 +1,10 @@
 import Payment from '../models/Payment.js';
 import Order from '../models/Order.js';
+import { processUserPayment } from '../services/accountService.js';
 
-// Record a payment for an order (Admin only)
+// Record a payment for an order or account (Admin only)
 export const recordPayment = async (req, res) => {
-    const { orderId, amount, notes } = req.body;
+    const { orderId, amount, paymentDate, paymentMethod, notes } = req.body;
     const adminId = req.admin._id;
 
     try {
@@ -23,19 +24,19 @@ export const recordPayment = async (req, res) => {
             });
         }
 
-        // Create payment record
-        const payment = await Payment.create({
-            order: orderId,
-            amount,
-            recordedBy: adminId,
+        const result = await processUserPayment({
+            userId: order.customer,
+            amount: Number(amount),
+            orderId: order._id,
+            paymentMethod: paymentMethod || 'cash',
+            paymentDate: paymentDate || new Date(),
+            recordedById: adminId,
             notes: notes?.trim()
         });
 
-        // Update order paid amount and status
-        await order.updatePaidAmount(amount);
+        const updatedOrder = await Order.findById(orderId);
 
-        // Populate payment for response
-        const populatedPayment = await Payment.findById(payment._id)
+        const populatedPayment = await Payment.findById(result.payment._id)
             .populate('recordedBy', 'username fullName');
 
         res.status(201).json({
@@ -45,16 +46,17 @@ export const recordPayment = async (req, res) => {
                 order: populatedPayment.order,
                 amount: populatedPayment.amount,
                 paymentDate: populatedPayment.paymentDate,
+                paymentMethod: populatedPayment.paymentMethod,
                 recordedBy: populatedPayment.recordedBy,
                 notes: populatedPayment.notes,
                 createdAt: populatedPayment.createdAt
             },
             order: {
-                _id: order._id,
-                total: order.total,
-                paidAmount: order.paidAmount,
-                remainingAmount: order.total - order.paidAmount,
-                status: order.status
+                _id: updatedOrder._id,
+                total: updatedOrder.total,
+                paidAmount: updatedOrder.paidAmount,
+                remainingAmount: updatedOrder.total - updatedOrder.paidAmount,
+                status: updatedOrder.status
             }
         });
     } catch (error) {

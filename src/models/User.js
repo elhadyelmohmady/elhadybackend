@@ -37,6 +37,15 @@ const userSchema = new mongoose.Schema({
     isActive: {
         type: Boolean,
         default: true
+    },
+    creditLimit: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    isCreditAllowed: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true

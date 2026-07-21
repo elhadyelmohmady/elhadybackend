@@ -17,8 +17,8 @@ export const createOrderSchema = z.object({
             product: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid product ID'),
             quantity: z.number().int().min(1)
         })).min(1, 'Order must have at least one item'),
-        paymentMethod: z.enum(['cash_on_delivery']).optional().default('cash_on_delivery')
-    })
+        paymentMethod: z.enum(['cash_on_delivery', 'deferred', 'credit', 'online', 'bank_transfer']).optional().default('cash_on_delivery')
+    }).passthrough()
 });
 
 export const orderQuerySchema = z.object({

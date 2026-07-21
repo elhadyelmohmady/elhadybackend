@@ -1,11 +1,25 @@
 import mongoose from 'mongoose';
 
-const paymentSchema = new mongoose.Schema({
+const transactionSchema = new mongoose.Schema({
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
         index: true
+    },
+    type: {
+        type: String,
+        enum: ['order_debit', 'payment_credit', 'adjustment_debit', 'adjustment_credit'],
+        required: true
+    },
+    amount: {
+        type: Number,
+        required: true,
+        min: 0.01
+    },
+    balanceAfter: {
+        type: Number,
+        required: true
     },
     order: {
         type: mongoose.Schema.Types.ObjectId,
@@ -13,19 +27,21 @@ const paymentSchema = new mongoose.Schema({
         required: false,
         index: true
     },
-    amount: {
-        type: Number,
-        required: true,
-        min: 0.01
+    payment: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Payment',
+        required: false
     },
     paymentMethod: {
         type: String,
         enum: ['cash', 'deferred', 'bank_transfer', 'online', 'check', 'other'],
         default: 'cash'
     },
-    paymentDate: {
+    transactionDate: {
         type: Date,
-        default: Date.now
+        default: Date.now,
+        required: true,
+        index: true
     },
     recordedBy: {
         type: mongoose.Schema.Types.ObjectId,
@@ -41,9 +57,8 @@ const paymentSchema = new mongoose.Schema({
     timestamps: true
 });
 
-paymentSchema.index({ user: 1, paymentDate: -1 });
-paymentSchema.index({ order: 1, paymentDate: -1 });
+transactionSchema.index({ user: 1, transactionDate: -1 });
 
-const Payment = mongoose.model('Payment', paymentSchema);
+const Transaction = mongoose.model('Transaction', transactionSchema);
 
-export default Payment;
+export default Transaction;
