@@ -25,22 +25,32 @@ export const createOrder = async (req, res) => {
     }
     deliveryDays = { min: selectedShipping.min, max: selectedShipping.max };
 
-    // Support both saved location ID and full address object
+    // Support saved location ID, partial/full address object, or fallback default address
     if (locationId) {
         const savedLocation = await SavedLocation.findOne({ _id: locationId, user: customerId });
         if (!savedLocation) {
             return res.status(404).json({ message: 'العنوان المحفوظ غير موجود' });
         }
         orderAddress = {
-            lat: savedLocation.lat,
-            lng: savedLocation.lng,
-            city: savedLocation.city,
-            locationDetails: savedLocation.locationDetails
+            lat: savedLocation.lat ?? 0,
+            lng: savedLocation.lng ?? 0,
+            city: savedLocation.city || 'غير محدد',
+            locationDetails: savedLocation.locationDetails || 'مقر العميل'
         };
-    } else if (address && address.lat && address.lng && address.city && address.locationDetails) {
-        orderAddress = address;
+    } else if (address) {
+        orderAddress = {
+            lat: typeof address.lat === 'number' ? address.lat : 0,
+            lng: typeof address.lng === 'number' ? address.lng : 0,
+            city: address.city || 'غير محدد',
+            locationDetails: address.locationDetails || (typeof address === 'string' ? address : 'مقر العميل / استلام مباشر')
+        };
     } else {
-        return res.status(400).json({ message: 'العنوان مطلوب (خط الطول، دائرة العرض، المدينة، تفاصيل الموقع)' });
+        orderAddress = {
+            lat: 0,
+            lng: 0,
+            city: 'غير محدد',
+            locationDetails: 'مقر العميل / استلام مباشر'
+        };
     }
 
     // Fetch all requested products

@@ -48,19 +48,23 @@ const orderSchema = new mongoose.Schema({
     address: {
         lat: {
             type: Number,
-            required: true
+            required: false,
+            default: 0
         },
         lng: {
             type: Number,
-            required: true
+            required: false,
+            default: 0
         },
         city: {
             type: String,
-            required: true
+            required: false,
+            default: 'غير محدد'
         },
         locationDetails: {
             type: String,
-            required: true
+            required: false,
+            default: 'مقر العميل / استلام مباشر'
         }
     },
     shippingType: {
