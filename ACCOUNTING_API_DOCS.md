@@ -6,17 +6,19 @@
 
 ## 📌 قائمة الـ Endpoints للـ Frontend
 
+> 💡 **ملاحظة هامّة**: جميع مسارات الإدارة (Admin) تُدعم كلاً من البادئتين `/api/accounts/` وكذلك `/api/dashboard/accounts/` أو `/api/dashboard/financial-overview`.
+
 | Endpoint | Method | Auth | الوصف (Description) |
 |---|---|---|---|
 | `/api/accounts/my-account` | `GET` | User | جلب ملخص الحساب المالي للمستخدم الحالي (الرصيد، الدين، حد الآجل، إجمالي المدفوعات) |
 | `/api/accounts/my-statement` | `GET` | User | جلب كشف حساب تفصيلي (سجل كافة عمليات الفلوس) للمستخدم الحالي مع الترقيم والفلترة |
 | `/api/orders` | `POST` | User | إنشاء طلب جديد (يدعم `paymentMethod: "deferred"` للطلب بالأجل) |
-| `/api/accounts/financial-overview` | `GET` | Admin | نظرة مالية شاملة للتطبيق كله (إجمالي المبيعات، المحصل، الديون المستحقة، كبار المدينين) |
-| `/api/accounts/users/:userId/summary` | `GET` | Admin | جلب ملخص الحساب المالي لعميل محدد |
-| `/api/accounts/users/:userId/statement` | `GET` | Admin | جلب كشف حساب تفصيلي لعميل محدد |
-| `/api/accounts/payments` | `POST` | Admin | تسجيل دفعة مادية/سداد لعميل (تدعم تاريخ مخصص `paymentDate` وسداد طلب أو حساب عام) |
-| `/api/accounts/adjustments` | `POST` | Admin | تسجيل تسوية مالية (إضافة دين / خصم دين) بحساب العميل مع تاريخ مخصص |
-| `/api/accounts/users/:userId/credit-limit` | `PUT` | Admin | تعديل حد الائتمان/الآجل والسماح بالدفع بالأجل لعميل محدد |
+| `/api/accounts/financial-overview` <br> *(أو `/api/dashboard/accounts/financial-overview`)* | `GET` | Admin | نظرة مالية شاملة للتطبيق كله (إجمالي المبيعات، المحصل، الديون المستحقة، كبار المدينين) |
+| `/api/accounts/users/:userId/summary` <br> *(أو `/api/dashboard/accounts/users/:userId/summary`)* | `GET` | Admin | جلب ملخص الحساب المالي لعميل محدد |
+| `/api/accounts/users/:userId/statement` <br> *(أو `/api/dashboard/accounts/users/:userId/statement`)* | `GET` | Admin | جلب كشف حساب تفصيلي لعميل محدد |
+| `/api/accounts/payments` <br> *(أو `/api/dashboard/accounts/payments`)* | `POST` | Admin | تسجيل دفعة مادية/سداد لعميل (تدعم تاريخ مخصص `paymentDate` وسداد طلب أو حساب عام) |
+| `/api/accounts/adjustments` <br> *(أو `/api/dashboard/accounts/adjustments`)* | `POST` | Admin | تسجيل تسوية مالية (إضافة دين / خصم دين) بحساب العميل مع تاريخ مخصص |
+| `/api/accounts/users/:userId/credit-limit` <br> *(أو `/api/dashboard/accounts/users/:userId/credit-limit`)* | `PUT` | Admin | تعديل حد الائتمان/الآجل والسماح بالدفع بالأجل لعميل محدد |
 
 ---
 

@@ -36,6 +36,9 @@ import {
 import { authenticateDashboard, requirePermission, requireRole } from '../middleware/dashboardAuth.js';
 import { productUpload, brandUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
 
+import accountRoutes from './accountRoutes.js';
+import { getFinancialOverview } from '../controllers/accountController.js';
+
 const router = express.Router();
 
 // Public routes
@@ -47,11 +50,13 @@ router.use(authenticateDashboard);
 // Auth routes
 router.get('/auth/me', getCurrentAdmin);
 
-// Dashboard stats
+// Dashboard stats & Financial Overview
 router.get('/stats', requirePermission('viewDashboard'), getDashboardStats);
-
-// Revenue stats
 router.get('/revenue', requirePermission('viewDashboard'), getRevenueStats);
+router.get('/financial-overview', getFinancialOverview);
+
+// Accounts management routes alias under dashboard
+router.use('/accounts', accountRoutes);
 
 // ==================== ADMIN MANAGEMENT ====================
 router.get('/admins', requirePermission('manageAdmins'), getAdmins);
