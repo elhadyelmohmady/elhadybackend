@@ -306,7 +306,9 @@ export const updateUser = async (req, res) => {
     if (password) user.password = password;
 
     await user.save();
-    res.json({ success: true, data: user.select('-password') });
+    const userObj = user.toObject();
+    delete userObj.password;
+    res.json({ success: true, data: userObj });
 };
 
 // @desc    Delete user
@@ -510,6 +512,7 @@ export const createProduct = async (req, res) => {
         }
 
         const product = await Product.create({
+            local_id: `dashboard_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             name,
             price,
             stock,

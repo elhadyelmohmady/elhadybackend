@@ -9,10 +9,14 @@ export const validate = (schema) => (req, res, next) => {
         });
         next();
     } catch (error) {
-        const errors = (error && Array.isArray(error.errors)) ? error.errors.map(err => ({
-            field: err.path.join('.'),
-            message: err.message
-        })) : [{ field: 'unknown', message: error.message || 'Validation failed' }];
+        // Zod v4 uses .issues, Zod v3 used .errors — handle both
+        const issues = error.issues ?? error.errors ?? [];
+        const errors = Array.isArray(issues) && issues.length > 0
+            ? issues.map(err => ({
+                field: Array.isArray(err.path) ? err.path.join('.') : '',
+                message: err.message
+            }))
+            : [{ field: 'unknown', message: error.message || 'Validation failed' }];
         next(new ApiError('Validation Error', 400, errors));
     }
 };
