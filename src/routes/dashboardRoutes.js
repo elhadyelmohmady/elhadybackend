@@ -31,7 +31,9 @@ import {
     getBrand,
     createBrand,
     updateBrand,
-    deleteBrand
+    deleteBrand,
+    getSettings,
+    updateSettings
 } from '../controllers/dashboardController.js';
 import { authenticateDashboard, requirePermission, requireRole } from '../middleware/dashboardAuth.js';
 import { productUpload, brandUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
@@ -117,5 +119,9 @@ router.delete('/notifications/:id', deleteDashboardNotification);
 router.get('/notifications/telegram-config', getTelegramConfig);
 router.put('/notifications/telegram-config', updateTelegramConfig);
 router.post('/notifications/test-telegram', testTelegramConfig);
+
+// ==================== SETTINGS MANAGEMENT ====================
+router.get('/settings', requirePermission('viewSettings'), getSettings);
+router.put('/settings', requirePermission('manageSettings'), updateSettings);
 
 export default router;

@@ -4,6 +4,7 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
+import Setting from '../models/Setting.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { processProductImage, processBrandLogo, deleteFile } from '../utils/imageUpload.js';
@@ -496,7 +497,7 @@ export const getProduct = async (req, res) => {
 // @access  Private (manageProducts permission)
 export const createProduct = async (req, res) => {
     try {
-        const { name, price, stock, brand, categories, keywords, metadata } = req.body;
+        const { name, price, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
         let image = req.body.image || null;
 
         // Process uploaded image if present
@@ -520,7 +521,9 @@ export const createProduct = async (req, res) => {
             categories: categories ? (Array.isArray(categories) ? categories : [categories]) : [],
             keywords: keywords ? (Array.isArray(keywords) ? keywords : [keywords]) : [],
             image,
-            metadata: metadata ? (typeof metadata === 'string' ? JSON.parse(metadata) : metadata) : {}
+            metadata: metadata ? (typeof metadata === 'string' ? JSON.parse(metadata) : metadata) : {},
+            minOrderQty: minOrderQty !== undefined ? minOrderQty : 1,
+            maxOrderQty: maxOrderQty !== undefined ? maxOrderQty : 100
         });
 
         res.status(201).json({ success: true, data: product });
@@ -534,7 +537,7 @@ export const createProduct = async (req, res) => {
 // @access  Private (manageProducts permission)
 export const updateProduct = async (req, res) => {
     try {
-        const { name, price, stock, brand, categories, keywords, metadata } = req.body;
+        const { name, price, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
 
         const product = await Product.findById(req.params.id);
         if (!product) {
@@ -569,6 +572,8 @@ export const updateProduct = async (req, res) => {
         if (keywords !== undefined) product.keywords = Array.isArray(keywords) ? keywords : [keywords];
         if (image !== undefined) product.image = image;
         if (metadata !== undefined) product.metadata = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+        if (minOrderQty !== undefined) product.minOrderQty = minOrderQty;
+        if (maxOrderQty !== undefined) product.maxOrderQty = maxOrderQty;
 
         await product.save();
         res.json({ success: true, data: product });
@@ -894,4 +899,35 @@ export const deleteBrand = async (req, res) => {
         return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
     }
     res.json({ success: true, message: 'تم حذف العلامة التجارية بنجاح' });
+};
+
+// ==================== SETTINGS MANAGEMENT ====================
+
+// @desc    Get global settings
+// @route   GET /api/dashboard/settings
+// @access  Private (viewSettings permission)
+export const getSettings = async (req, res) => {
+    let setting = await Setting.findOne({ key: 'general' });
+    if (!setting) {
+        setting = await Setting.create({ key: 'general', minOrderTotal: 100 });
+    }
+    res.json({ success: true, data: setting });
+};
+
+// @desc    Update global settings
+// @route   PUT /api/dashboard/settings
+// @access  Private (manageSettings permission)
+export const updateSettings = async (req, res) => {
+    const { minOrderTotal } = req.body;
+    let setting = await Setting.findOne({ key: 'general' });
+    if (!setting) {
+        setting = new Setting({ key: 'general' });
+    }
+    
+    if (minOrderTotal !== undefined) {
+        setting.minOrderTotal = minOrderTotal;
+    }
+    
+    await setting.save();
+    res.json({ success: true, data: setting });
 };
