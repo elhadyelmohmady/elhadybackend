@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
     isCreditAllowed: {
         type: Boolean,
         default: true
+    },
+    fcmToken: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true

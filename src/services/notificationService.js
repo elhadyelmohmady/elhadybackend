@@ -1,6 +1,41 @@
 import axios from 'axios';
 import Notification from '../models/Notification.js';
 import Setting from '../models/Setting.js';
+import { admin } from '../config/firebaseConfig.js';
+
+export const sendPushNotification = async (fcmToken, title, body) => {
+    if (!admin || !fcmToken) return;
+
+    const message = {
+        notification: {
+            title: title,
+            body: body,
+        },
+        android: {
+            priority: 'high',
+            notification: {
+                channelId: 'high_priority',
+                defaultSound: true,
+                defaultVibrateTimings: true,
+            }
+        },
+        apns: {
+            payload: {
+                aps: {
+                    sound: 'default'
+                }
+            }
+        },
+        token: fcmToken,
+    };
+
+    try {
+        await admin.messaging().send(message);
+        console.log(`[NotificationService] Sent Push Notification successfully`);
+    } catch (error) {
+        console.error('[NotificationService] Failed to send Push Notification:', error.message);
+    }
+};
 
 /**
  * Get Telegram credentials from process.env or MongoDB Setting document
@@ -201,9 +236,12 @@ export const notifyOrderStatusChanged = async (order, customer, oldStatus, newSt
 
     // Also Notify Customer in DB if customer exists
     if (customer?._id) {
+        const titleCustomer = `تحديث حالة طلبك #${order._id}`;
+        const messageCustomer = `أصبحت حالة طلبك الآن: ${formatStatus(newStatus)}`;
+        
         await createNotification({
-            title: `تحديث حالة طلبك #${order._id}`,
-            message: `أصبحت حالة طلبك الآن: ${formatStatus(newStatus)}`,
+            title: titleCustomer,
+            message: messageCustomer,
             type: 'order_status',
             recipientType: 'customer',
             recipientId: customer._id,
@@ -212,6 +250,11 @@ export const notifyOrderStatusChanged = async (order, customer, oldStatus, newSt
             metadata: { orderId: order._id, newStatus },
             sendTelegram: false
         });
+
+        // Send Push Notification
+        if (customer.fcmToken) {
+            await sendPushNotification(customer.fcmToken, titleCustomer, messageCustomer);
+        }
     }
 };
 

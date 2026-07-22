@@ -9,6 +9,9 @@ import { adminJS, adminRouter } from './config/adminConfig.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger.js';
 import { requestLogger } from './middleware/loggingMiddleware.js';
+import { initializeFirebase } from './config/firebaseConfig.js';
+
+initializeFirebase();
 import productRoutes from './routes/productRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';

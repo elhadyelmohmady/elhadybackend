@@ -154,3 +154,30 @@ export const getAllUsers = async (req, res) => {
         res.status(500).json({ message: 'Server error while fetching users' });
     }
 };
+
+// @desc    Update FCM Token
+// @route   PUT /api/users/fcm-token
+// @access  Private (authenticated user)
+export const updateFcmToken = async (req, res) => {
+    try {
+        const { fcmToken } = req.body;
+        
+        if (!fcmToken) {
+            return res.status(400).json({ message: 'FCM Token is required' });
+        }
+
+        const user = await User.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.fcmToken = fcmToken;
+        await user.save();
+
+        res.json({ message: 'FCM Token updated successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error while updating FCM Token' });
+    }
+};
