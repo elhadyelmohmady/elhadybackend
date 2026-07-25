@@ -931,16 +931,30 @@ export const getSettings = async (req, res) => {
 // @route   PUT /api/dashboard/settings
 // @access  Private (manageSettings permission)
 export const updateSettings = async (req, res) => {
-    const { minOrderTotal } = req.body;
+    const {
+        minOrderTotal,
+        maintenanceMode,
+        maintenanceMessage,
+        minRequiredVersion,
+        latestVersion,
+        updateMessage,
+        androidStoreUrl,
+        iosStoreUrl
+    } = req.body;
     let setting = await Setting.findOne({ key: 'general' });
     if (!setting) {
         setting = new Setting({ key: 'general' });
     }
-    
-    if (minOrderTotal !== undefined) {
-        setting.minOrderTotal = minOrderTotal;
-    }
-    
+
+    if (minOrderTotal !== undefined) setting.minOrderTotal = minOrderTotal;
+    if (maintenanceMode !== undefined) setting.maintenanceMode = maintenanceMode;
+    if (maintenanceMessage !== undefined) setting.maintenanceMessage = maintenanceMessage;
+    if (minRequiredVersion !== undefined) setting.minRequiredVersion = minRequiredVersion;
+    if (latestVersion !== undefined) setting.latestVersion = latestVersion;
+    if (updateMessage !== undefined) setting.updateMessage = updateMessage;
+    if (androidStoreUrl !== undefined) setting.androidStoreUrl = androidStoreUrl;
+    if (iosStoreUrl !== undefined) setting.iosStoreUrl = iosStoreUrl;
+
     await setting.save();
     res.json({ success: true, data: setting });
 };

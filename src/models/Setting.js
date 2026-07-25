@@ -20,6 +20,34 @@ const settingSchema = new mongoose.Schema({
     telegramChatId: {
         type: String,
         default: ''
+    },
+    maintenanceMode: {
+        type: Boolean,
+        default: false
+    },
+    maintenanceMessage: {
+        type: String,
+        default: 'التطبيق تحت الصيانة حاليًا، حاول مرة أخرى بعد قليل.'
+    },
+    minRequiredVersion: {
+        type: String,
+        default: ''
+    },
+    latestVersion: {
+        type: String,
+        default: ''
+    },
+    updateMessage: {
+        type: String,
+        default: 'يتوفر إصدار جديد من التطبيق يحتوي على تحسينات وإصلاحات.'
+    },
+    androidStoreUrl: {
+        type: String,
+        default: ''
+    },
+    iosStoreUrl: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true
