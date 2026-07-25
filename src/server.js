@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import './config/initMongoose.js';
 import app from './app.js';
 import connectDB from './config/db.js';
 
