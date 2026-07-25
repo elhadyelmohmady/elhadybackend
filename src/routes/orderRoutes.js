@@ -1,5 +1,5 @@
 import express from 'express';
-import { createOrder, getMyOrders, getOrderById, cancelOrder, getOrderSettings } from '../controllers/orderController.js';
+import { createOrder, getMyOrders, getOrderById, cancelOrder, getOrderSettings, getFrequentItems, getReorderPreview } from '../controllers/orderController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { validate } from '../middleware/validateMiddleware.js';
 import { createOrderSchema, orderQuerySchema } from '../utils/validationSchemas.js';
@@ -95,6 +95,42 @@ router.get('/', protect, validate(orderQuerySchema), getMyOrders);
  *         description: Order settings
  */
 router.get('/settings', protect, getOrderSettings);
+
+/**
+ * @swagger
+ * /api/orders/frequent-items:
+ *   get:
+ *     summary: Get the current user's most frequently ordered products
+ *     tags: [Orders]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of frequently ordered products
+ */
+router.get('/frequent-items', protect, getFrequentItems);
+
+/**
+ * @swagger
+ * /api/orders/{id}/reorder:
+ *   get:
+ *     summary: Preview re-ordering a past order (current price/stock per item)
+ *     tags: [Orders]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Reorder preview
+ *       404:
+ *         description: Order not found
+ */
+router.get('/:id/reorder', protect, getReorderPreview);
 
 /**
  * @swagger

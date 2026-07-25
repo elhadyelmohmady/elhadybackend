@@ -6,7 +6,7 @@ import Product from '../models/Product.js';
  */
 export const getProducts = async (req, res) => {
     try {
-        const { q, category, brand, sort, page = 1, limit = 10 } = req.query;
+        const { q, category, brand, sort, onSale, page = 1, limit = 10 } = req.query;
 
         const query = {};
 
@@ -24,6 +24,11 @@ export const getProducts = async (req, res) => {
 
         if (brand) {
             query.brand = brand;
+        }
+
+        if (onSale === 'true') {
+            query.originalPrice = { $ne: null };
+            query.$expr = { $gt: ['$originalPrice', '$price'] };
         }
 
         const sortOptions = {

@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Product from '../models/Product.js';
 import bcrypt from 'bcryptjs';
 
 // @desc    Get user profile
@@ -157,6 +158,71 @@ export const getAllUsers = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error while fetching users' });
+    }
+};
+
+// @desc    Get current user's favorite products
+// @route   GET /api/users/favorites
+// @access  Private (authenticated user)
+export const getFavorites = async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).populate({
+            path: 'favorites',
+            select: 'name image price stock minOrderQty maxOrderQty brand category',
+            populate: [{ path: 'brand', select: 'name' }, { path: 'category', select: 'name' }]
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({ data: user.favorites });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error while fetching favorites' });
+    }
+};
+
+// @desc    Add a product to favorites
+// @route   POST /api/users/favorites/:productId
+// @access  Private (authenticated user)
+export const addFavorite = async (req, res) => {
+    try {
+        const { productId } = req.params;
+
+        const product = await Product.findById(productId).select('_id');
+        if (!product) {
+            return res.status(404).json({ message: 'المنتج غير موجود' });
+        }
+
+        await User.updateOne(
+            { _id: req.user._id },
+            { $addToSet: { favorites: productId } }
+        );
+
+        res.json({ message: 'تمت الإضافة إلى المفضلة' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error while adding favorite' });
+    }
+};
+
+// @desc    Remove a product from favorites
+// @route   DELETE /api/users/favorites/:productId
+// @access  Private (authenticated user)
+export const removeFavorite = async (req, res) => {
+    try {
+        const { productId } = req.params;
+
+        await User.updateOne(
+            { _id: req.user._id },
+            { $pull: { favorites: productId } }
+        );
+
+        res.json({ message: 'تمت الإزالة من المفضلة' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error while removing favorite' });
     }
 };
 

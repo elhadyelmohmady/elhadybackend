@@ -497,7 +497,7 @@ export const getProduct = async (req, res) => {
 // @access  Private (manageProducts permission)
 export const createProduct = async (req, res) => {
     try {
-        const { name, price, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
+        const { name, price, originalPrice, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
         let image = req.body.image || null;
 
         // Process uploaded image if present
@@ -505,9 +505,9 @@ export const createProduct = async (req, res) => {
             try {
                 image = await processProductImage(req.file);
             } catch (error) {
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Failed to process product image' 
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to process product image'
                 });
             }
         }
@@ -516,6 +516,7 @@ export const createProduct = async (req, res) => {
             local_id: `dashboard_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             name,
             price,
+            originalPrice: originalPrice !== undefined && originalPrice !== '' ? originalPrice : null,
             stock,
             brand,
             categories: categories ? (Array.isArray(categories) ? categories : [categories]) : [],
@@ -537,7 +538,7 @@ export const createProduct = async (req, res) => {
 // @access  Private (manageProducts permission)
 export const updateProduct = async (req, res) => {
     try {
-        const { name, price, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
+        const { name, price, originalPrice, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
 
         const product = await Product.findById(req.params.id);
         if (!product) {
@@ -566,6 +567,7 @@ export const updateProduct = async (req, res) => {
 
         if (name) product.name = name;
         if (price !== undefined) product.price = price;
+        if (originalPrice !== undefined) product.originalPrice = originalPrice === '' ? null : originalPrice;
         if (stock !== undefined) product.stock = stock;
         if (brand !== undefined) product.brand = brand;
         if (categories !== undefined) product.categories = Array.isArray(categories) ? categories : [categories];

@@ -1,6 +1,7 @@
 import Notification from '../models/Notification.js';
 import Setting from '../models/Setting.js';
-import { sendTelegramNotification, getTelegramCredentials } from '../services/notificationService.js';
+import User from '../models/User.js';
+import { sendTelegramNotification, getTelegramCredentials, sendBulkPushNotifications } from '../services/notificationService.js';
 
 // ==================== DASHBOARD ADMIN NOTIFICATIONS ====================
 
@@ -111,6 +112,64 @@ export const deleteDashboardNotification = async (req, res) => {
     res.json({
         success: true,
         message: 'تم حذف الإشعار بنجاح'
+    });
+};
+
+// @desc    Send a notification/promo to all customers or a chosen list of them
+// @route   POST /api/dashboard/notifications/broadcast
+// @access  Private (Dashboard Admin, sendNotifications permission)
+export const sendBroadcastNotification = async (req, res) => {
+    const { title, message, target, userIds } = req.body;
+
+    if (!title || !message) {
+        return res.status(400).json({ success: false, message: 'العنوان والرسالة مطلوبان' });
+    }
+
+    const isTargeted = target === 'selected' && Array.isArray(userIds) && userIds.length > 0;
+
+    let notification;
+    let recipients;
+
+    if (isTargeted) {
+        recipients = await User.find({ _id: { $in: userIds }, isActive: true }).select('fcmToken');
+
+        const docs = userIds.map(id => ({
+            title,
+            message,
+            type: 'system_event',
+            recipientType: 'customer',
+            recipientId: id,
+            recipientModel: 'User',
+            severity: 'info',
+            metadata: { broadcast: true, sentBy: req.admin._id }
+        }));
+        const created = await Notification.insertMany(docs);
+        notification = created[0];
+    } else {
+        recipients = await User.find({ isActive: true }).select('fcmToken');
+
+        notification = await Notification.create({
+            title,
+            message,
+            type: 'system_event',
+            recipientType: 'all',
+            severity: 'info',
+            metadata: { broadcast: true, sentBy: req.admin._id }
+        });
+    }
+
+    const tokens = recipients.map(u => u.fcmToken).filter(Boolean);
+    const pushResult = await sendBulkPushNotifications(tokens, title, message);
+
+    res.status(201).json({
+        success: true,
+        message: 'تم إرسال الإشعار بنجاح',
+        data: {
+            notification,
+            recipientCount: recipients.length,
+            pushSent: pushResult.successCount,
+            pushFailed: pushResult.failureCount
+        }
     });
 };
 

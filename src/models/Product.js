@@ -13,6 +13,7 @@ const productSchema = new mongoose.Schema({
         trim: true
     },
     price: { type: Number, required: true },
+    originalPrice: { type: Number, default: null, min: 0 },
     stock: { type: Number, default: 0 },
     categories: [{
         type: mongoose.Schema.Types.ObjectId,
@@ -49,12 +50,25 @@ const productSchema = new mongoose.Schema({
         default: 0
     }
 }, {
-    timestamps: true
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
 });
 
 productSchema.index({ name: 'text', keywords: 'text' });
 productSchema.index({ brand: 1 });
 productSchema.index({ categories: 1 });
+
+// True when the product has a valid "before" price higher than its current price
+productSchema.virtual('onSale').get(function () {
+    return Boolean(this.originalPrice && this.originalPrice > this.price);
+});
+
+// Rounded percentage off the original price, e.g. 25 for a 25% discount
+productSchema.virtual('discountPercent').get(function () {
+    if (!this.originalPrice || this.originalPrice <= this.price) return 0;
+    return Math.round((1 - this.price / this.originalPrice) * 100);
+});
 
 const Product = mongoose.model('Product', productSchema);
 

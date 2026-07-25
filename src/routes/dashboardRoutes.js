@@ -48,7 +48,8 @@ import {
     deleteDashboardNotification,
     getTelegramConfig,
     updateTelegramConfig,
-    testTelegramConfig
+    testTelegramConfig,
+    sendBroadcastNotification
 } from '../controllers/notificationController.js';
 
 const router = express.Router();
@@ -119,6 +120,7 @@ router.delete('/notifications/:id', deleteDashboardNotification);
 router.get('/notifications/telegram-config', getTelegramConfig);
 router.put('/notifications/telegram-config', updateTelegramConfig);
 router.post('/notifications/test-telegram', testTelegramConfig);
+router.post('/notifications/broadcast', requirePermission('sendNotifications'), sendBroadcastNotification);
 
 // ==================== SETTINGS MANAGEMENT ====================
 router.get('/settings', requirePermission('viewSettings'), getSettings);

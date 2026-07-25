@@ -38,6 +38,41 @@ export const sendPushNotification = async (fcmToken, title, body) => {
 };
 
 /**
+ * Send the same push notification to many devices at once (chunked into
+ * batches of 500 — the FCM multicast limit).
+ */
+export const sendBulkPushNotifications = async (fcmTokens, title, body) => {
+    const tokens = [...new Set((fcmTokens || []).filter(Boolean))];
+    if (!admin || tokens.length === 0) return { successCount: 0, failureCount: 0 };
+
+    const message = {
+        notification: { title, body },
+        android: {
+            priority: 'high',
+            notification: { channelId: 'high_priority', defaultSound: true, defaultVibrateTimings: true }
+        },
+        apns: { payload: { aps: { sound: 'default' } } }
+    };
+
+    let successCount = 0;
+    let failureCount = 0;
+
+    for (let i = 0; i < tokens.length; i += 500) {
+        const chunk = tokens.slice(i, i + 500);
+        try {
+            const response = await admin.messaging().sendEachForMulticast({ ...message, tokens: chunk });
+            successCount += response.successCount;
+            failureCount += response.failureCount;
+        } catch (error) {
+            console.error('[NotificationService] Bulk push batch failed:', error.message);
+            failureCount += chunk.length;
+        }
+    }
+
+    return { successCount, failureCount };
+};
+
+/**
  * Get Telegram credentials from process.env or MongoDB Setting document
  */
 export const getTelegramCredentials = async () => {

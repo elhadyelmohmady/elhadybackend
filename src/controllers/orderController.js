@@ -269,6 +269,75 @@ export const getOrderById = async (req, res) => {
     });
 };
 
+// @desc    Preview re-ordering a past order — returns each item with its current price/stock
+//          so the app can show what changed before adding it back to the cart
+// @route   GET /api/orders/:id/reorder
+// @access  Private (authenticated user)
+export const getReorderPreview = async (req, res) => {
+    const order = await Order.findOne({ _id: req.params.id, customer: req.user._id }).lean();
+
+    if (!order) {
+        return res.status(404).json({ message: 'الطلب غير موجود' });
+    }
+
+    const productIds = order.items.map(i => i.product);
+    const products = await Product.find({ _id: { $in: productIds } }).lean();
+    const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+    const items = order.items.map(item => {
+        const product = productMap.get(item.product.toString());
+
+        if (!product) {
+            return {
+                product: item.product,
+                orderedQuantity: item.quantity,
+                orderedPrice: item.price,
+                available: false,
+                reason: 'المنتج لم يعد متوفراً'
+            };
+        }
+
+        const quantity = Math.min(item.quantity, product.stock);
+        let available = product.stock > 0;
+        let reason = null;
+
+        if (!available) {
+            reason = 'نفدت الكمية';
+        } else if (quantity < item.quantity) {
+            reason = `الكمية المتوفرة الآن ${product.stock} فقط`;
+        } else if (item.quantity < product.minOrderQty) {
+            available = false;
+            reason = `الحد الأدنى للطلب أصبح ${product.minOrderQty}`;
+        }
+
+        return {
+            product: {
+                _id: product._id,
+                name: product.name,
+                image: product.image,
+                price: product.price,
+                stock: product.stock,
+                minOrderQty: product.minOrderQty,
+                maxOrderQty: product.maxOrderQty
+            },
+            orderedQuantity: item.quantity,
+            orderedPrice: item.price,
+            quantity,
+            priceChanged: product.price !== item.price,
+            available,
+            reason
+        };
+    });
+
+    res.json({
+        data: {
+            _id: order._id,
+            createdAt: order.createdAt,
+            items
+        }
+    });
+};
+
 export const cancelOrder = async (req, res) => {
     const order = await Order.findOne({ _id: req.params.id, customer: req.user._id });
 
@@ -298,6 +367,56 @@ export const cancelOrder = async (req, res) => {
     });
 
     res.json({ message: 'تم إلغاء الطلب بنجاح', data: order });
+};
+
+// @desc    Get products the current user orders most often (for a "frequent items" / quick reorder shelf)
+// @route   GET /api/orders/frequent-items
+// @access  Private (authenticated user)
+export const getFrequentItems = async (req, res) => {
+    const limit = parseInt(req.query.limit) || 10;
+
+    const results = await Order.aggregate([
+        { $match: { customer: req.user._id, status: { $ne: 'cancelled' } } },
+        { $unwind: '$items' },
+        {
+            $group: {
+                _id: '$items.product',
+                totalQuantity: { $sum: '$items.quantity' },
+                orderCount: { $sum: 1 },
+                lastOrderedAt: { $max: '$createdAt' }
+            }
+        },
+        { $sort: { totalQuantity: -1 } },
+        { $limit: limit },
+        {
+            $lookup: {
+                from: 'products',
+                localField: '_id',
+                foreignField: '_id',
+                as: 'product'
+            }
+        },
+        { $unwind: '$product' },
+        {
+            $project: {
+                _id: 0,
+                product: {
+                    _id: '$product._id',
+                    name: '$product.name',
+                    image: '$product.image',
+                    price: '$product.price',
+                    stock: '$product.stock',
+                    minOrderQty: '$product.minOrderQty',
+                    maxOrderQty: '$product.maxOrderQty'
+                },
+                totalQuantity: 1,
+                orderCount: 1,
+                lastOrderedAt: 1
+            }
+        }
+    ]);
+
+    res.json({ data: results });
 };
 
 export const getOrderSettings = async (req, res) => {
