@@ -5,10 +5,10 @@ import User from '../models/User.js';
 // @route   POST /api/auth/login
 // @access  Public
 export const login = async (req, res) => {
-    const { username, password } = req.body;
+    const { phoneNumber, password } = req.body;
 
     try {
-        const user = await User.findOne({ username });
+        const user = await User.findOne({ phoneNumber });
 
         if (user && (await user.comparePassword(password))) {
             if (!user.isActive) {
@@ -23,7 +23,7 @@ export const login = async (req, res) => {
                 token: generateToken(user._id)
             });
         } else {
-            res.status(401).json({ message: 'Invalid username or password' });
+            res.status(401).json({ message: 'Invalid phone number or password' });
         }
     } catch (error) {
         console.error(error);

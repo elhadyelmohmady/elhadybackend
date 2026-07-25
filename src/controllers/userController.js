@@ -40,11 +40,12 @@ export const updateUserProfile = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const { firstName, lastName } = req.body;
+        const { firstName, lastName, fullName } = req.body;
 
         // Update fields if provided
         if (firstName !== undefined) user.firstName = firstName;
         if (lastName !== undefined) user.lastName = lastName;
+        if (fullName !== undefined) user.fullName = fullName;
 
         // Update profile photo if provided
         if (req.body.profilePhoto !== undefined) {
@@ -111,10 +112,14 @@ export const createUser = async (req, res) => {
     const { username, password, fullName, phoneNumber } = req.body;
 
     try {
-        const userExists = await User.findOne({ $or: [{ username }, { phoneNumber }] });
+        const phoneExists = await User.findOne({ phoneNumber });
+        if (phoneExists) {
+            return res.status(400).json({ message: 'رقم الهاتف مستخدم بالفعل' });
+        }
 
-        if (userExists) {
-            return res.status(400).json({ message: 'User already exists' });
+        const usernameExists = await User.findOne({ username });
+        if (usernameExists) {
+            return res.status(400).json({ message: 'اسم المستخدم مستخدم بالفعل' });
         }
 
         const user = await User.create({
