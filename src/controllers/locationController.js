@@ -99,7 +99,8 @@ export const deleteLocation = async (req, res) => {
             return res.status(404).json({ message: 'العنوان غير موجود' });
         }
 
-        await location.deleteOne();
+        location.deleteFlag = 1;
+        await location.save();
 
         res.json({ message: 'تم حذف العنوان بنجاح' });
     } catch (error) {

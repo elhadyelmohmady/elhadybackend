@@ -103,7 +103,7 @@ export const markAllDashboardNotificationsAsRead = async (req, res) => {
 // @route   DELETE /api/dashboard/notifications/:id
 // @access  Private (Dashboard Admin)
 export const deleteDashboardNotification = async (req, res) => {
-    const notification = await Notification.findByIdAndDelete(req.params.id);
+    const notification = await Notification.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
 
     if (!notification) {
         return res.status(404).json({ success: false, message: 'الإشعار غير موجود' });

@@ -78,20 +78,31 @@ export const getDashboardStats = async (req, res) => {
     thisMonth.setDate(1);
     thisMonth.setHours(0, 0, 0, 0);
 
+    const dateFilter = {};
+    if (req.query.startDate) {
+        dateFilter.$gte = new Date(req.query.startDate);
+    }
+    if (req.query.endDate) {
+        const end = new Date(req.query.endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+    }
+    const dateQuery = Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {};
+
     const stats = await Promise.all([
         // Total users
-        User.countDocuments(),
+        User.countDocuments(dateQuery),
         // Active users
-        User.countDocuments({ isActive: true }),
+        User.countDocuments({ isActive: true, ...dateQuery }),
         // Total orders
-        Order.countDocuments(),
+        Order.countDocuments(dateQuery),
         // Total products
-        Product.countDocuments(),
+        Product.countDocuments(dateQuery),
         // Low stock products
-        Product.countDocuments({ stock: { $lt: 10 } }),
+        Product.countDocuments({ stock: { $lt: 10 }, ...dateQuery }),
         // Total revenue
         Order.aggregate([
-            { $match: { status: { $ne: 'cancelled' } } },
+            { $match: { status: { $ne: 'cancelled' }, ...dateQuery } },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]),
         // Today's orders
@@ -99,16 +110,16 @@ export const getDashboardStats = async (req, res) => {
         // This month's orders
         Order.countDocuments({ createdAt: { $gte: thisMonth } }),
         // Recent orders (last 5)
-        Order.find().sort('-createdAt').limit(5).populate('customer', 'username fullName phoneNumber'),
+        Order.find(dateQuery).sort('-createdAt').limit(5).populate('customer', 'username fullName phoneNumber'),
         // Revenue this month
         Order.aggregate([
             { $match: { createdAt: { $gte: thisMonth }, status: { $ne: 'cancelled' } } },
             { $group: { _id: null, total: { $sum: '$total' } } }
         ]),
         // Total categories
-        Category.countDocuments(),
+        Category.countDocuments(dateQuery),
         // Total brands
-        Brand.countDocuments()
+        Brand.countDocuments(dateQuery)
     ]);
 
     res.json({
@@ -177,7 +188,7 @@ export const updateAdmin = async (req, res) => {
 // @route   DELETE /api/dashboard/admins/:id
 // @access  Private (manageAdmins permission)
 export const deleteAdmin = async (req, res) => {
-    const admin = await Admin.findByIdAndDelete(req.params.id);
+    const admin = await Admin.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
     if (!admin) {
         return res.status(404).json({ success: false, message: 'المدير غير موجود' });
     }
@@ -316,7 +327,7 @@ export const updateUser = async (req, res) => {
 // @route   DELETE /api/dashboard/users/:id
 // @access  Private (manageUsers permission)
 export const deleteUser = async (req, res) => {
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
     if (!user) {
         return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     }
@@ -588,7 +599,7 @@ export const updateProduct = async (req, res) => {
 // @route   DELETE /api/dashboard/products/:id
 // @access  Private (manageProducts permission)
 export const deleteProduct = async (req, res) => {
-    const product = await Product.findByIdAndDelete(req.params.id);
+    const product = await Product.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
     if (!product) {
         return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
     }
@@ -754,7 +765,7 @@ export const updateCategory = async (req, res) => {
 // @route   DELETE /api/dashboard/categories/:id
 // @access  Private (manageCategories permission)
 export const deleteCategory = async (req, res) => {
-    const category = await Category.findByIdAndDelete(req.params.id);
+    const category = await Category.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
     if (!category) {
         return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
     }
@@ -896,7 +907,7 @@ export const updateBrand = async (req, res) => {
 // @route   DELETE /api/dashboard/brands/:id
 // @access  Private (manageBrands permission)
 export const deleteBrand = async (req, res) => {
-    const brand = await Brand.findByIdAndDelete(req.params.id);
+    const brand = await Brand.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
     if (!brand) {
         return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
     }
