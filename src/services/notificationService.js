@@ -1,10 +1,11 @@
 import axios from 'axios';
 import Notification from '../models/Notification.js';
 import Setting from '../models/Setting.js';
-import { admin } from '../config/firebaseConfig.js';
+import { getFirebaseMessaging } from '../config/firebaseConfig.js';
 
 export const sendPushNotification = async (fcmToken, title, body) => {
-    if (!admin || !fcmToken) return;
+    const messaging = getFirebaseMessaging();
+    if (!messaging || !fcmToken) return;
 
     const message = {
         notification: {
@@ -30,7 +31,7 @@ export const sendPushNotification = async (fcmToken, title, body) => {
     };
 
     try {
-        await admin.messaging().send(message);
+        await messaging.send(message);
         console.log(`[NotificationService] Sent Push Notification successfully`);
     } catch (error) {
         console.error('[NotificationService] Failed to send Push Notification:', error.message);
@@ -42,8 +43,9 @@ export const sendPushNotification = async (fcmToken, title, body) => {
  * batches of 500 — the FCM multicast limit).
  */
 export const sendBulkPushNotifications = async (fcmTokens, title, body) => {
+    const messaging = getFirebaseMessaging();
     const tokens = [...new Set((fcmTokens || []).filter(Boolean))];
-    if (!admin || tokens.length === 0) return { successCount: 0, failureCount: 0 };
+    if (!messaging || tokens.length === 0) return { successCount: 0, failureCount: 0 };
 
     const message = {
         notification: { title, body },
@@ -60,7 +62,7 @@ export const sendBulkPushNotifications = async (fcmTokens, title, body) => {
     for (let i = 0; i < tokens.length; i += 500) {
         const chunk = tokens.slice(i, i + 500);
         try {
-            const response = await admin.messaging().sendEachForMulticast({ ...message, tokens: chunk });
+            const response = await messaging.sendEachForMulticast({ ...message, tokens: chunk });
             successCount += response.successCount;
             failureCount += response.failureCount;
         } catch (error) {
