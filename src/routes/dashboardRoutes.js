@@ -16,6 +16,7 @@ import {
     getOrders,
     getOrder,
     updateOrderStatus,
+    updateOrder,
     getProducts,
     getProduct,
     createProduct,
@@ -89,6 +90,7 @@ router.put('/users/:id/toggle-status', requirePermission('manageUsers'), toggleU
 router.get('/orders', requirePermission('viewOrders'), getOrders);
 router.get('/orders/:id', requirePermission('viewOrders'), getOrder);
 router.put('/orders/:id/status', requirePermission('manageOrders'), updateOrderStatus);
+router.put('/orders/:id', requirePermission('manageOrders'), updateOrder);
 
 // ==================== PRODUCT MANAGEMENT ====================
 router.get('/products', requirePermission('viewProducts'), getProducts);

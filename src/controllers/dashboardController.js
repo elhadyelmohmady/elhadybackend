@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { processProductImage, processBrandLogo, deleteFile } from '../utils/imageUpload.js';
 import { notifyOrderStatusChanged, notifyNewUser } from '../services/notificationService.js';
+import { recordTransaction } from '../services/accountService.js';
 
 // @desc    Admin login
 // @route   POST /api/dashboard/auth/login
@@ -359,7 +360,7 @@ export const getOrders = async (req, res) => {
 
     const orders = await Order.find(query)
         .populate('customer', 'username fullName phoneNumber')
-        .populate('items.product', 'name image')
+        .populate('items.product', 'name image price stock minOrderQty maxOrderQty')
         .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -384,7 +385,7 @@ export const getOrders = async (req, res) => {
 export const getOrder = async (req, res) => {
     const order = await Order.findById(req.params.id)
         .populate('customer', 'username fullName phoneNumber')
-        .populate('items.product', 'name image price');
+        .populate('items.product', 'name image price stock minOrderQty maxOrderQty');
 
     if (!order) {
         return res.status(404).json({ success: false, message: 'الطلب غير موجود' });
@@ -432,6 +433,154 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     res.json({ success: true, data: order });
+};
+
+// @desc    Edit order items (quantities, add/remove products) — recalculates total,
+//          reconciles product stock and records a ledger adjustment for the total difference
+// @route   PUT /api/dashboard/orders/:id
+// @access  Private (manageOrders permission)
+export const updateOrder = async (req, res) => {
+    const { items } = req.body;
+
+    if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ success: false, message: 'يجب أن يحتوي الطلب على منتج واحد على الأقل' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+        return res.status(404).json({ success: false, message: 'الطلب غير موجود' });
+    }
+
+    if (['delivered', 'cancelled'].includes(order.status)) {
+        return res.status(400).json({ success: false, message: 'لا يمكن تعديل طلب تم تسليمه أو إلغاؤه' });
+    }
+
+    // Normalize & merge duplicate product entries from the request
+    const requestedMap = new Map();
+    for (const raw of items) {
+        const pid = String(raw.product);
+        const quantity = Number(raw.quantity);
+        if (!pid || !Number.isInteger(quantity) || quantity < 1) {
+            return res.status(400).json({ success: false, message: 'بيانات المنتجات غير صالحة' });
+        }
+        requestedMap.set(pid, (requestedMap.get(pid) || 0) + quantity);
+    }
+
+    const oldItemsMap = new Map(order.items.map(i => [i.product.toString(), i]));
+
+    const productIds = [...requestedMap.keys()];
+    const products = await Product.find({ _id: { $in: productIds } }).lean();
+    if (products.length !== productIds.length) {
+        const foundIds = new Set(products.map(p => p._id.toString()));
+        const missing = productIds.filter(id => !foundIds.has(id));
+        return res.status(400).json({ success: false, message: 'بعض المنتجات غير موجودة', missing });
+    }
+    const productMap = new Map(products.map(p => [p._id.toString(), p]));
+
+    const errors = [];
+    const newItems = [];
+    const stockDeltas = []; // { productId, delta } — delta = change to APPLY to product.stock
+
+    for (const [pid, quantity] of requestedMap) {
+        const product = productMap.get(pid);
+        if (quantity < product.minOrderQty) {
+            errors.push(`${product.name}: الحد الأدنى للطلب ${product.minOrderQty}`);
+        }
+        if (quantity > product.maxOrderQty) {
+            errors.push(`${product.name}: الحد الأقصى للطلب ${product.maxOrderQty}`);
+        }
+
+        const oldItem = oldItemsMap.get(pid);
+        const oldQty = oldItem ? oldItem.quantity : 0;
+        const qtyDelta = quantity - oldQty; // positive = needs more stock deducted
+        const availableStock = product.stock + oldQty; // stock pool excluding this order's existing reservation
+
+        if (quantity > availableStock) {
+            errors.push(`${product.name}: الكمية المتوفرة ${availableStock} فقط`);
+        }
+
+        if (qtyDelta !== 0) {
+            stockDeltas.push({ productId: product._id, delta: -qtyDelta });
+        }
+
+        // Existing items keep their original locked-in price; newly added items use current price
+        const price = oldItem ? oldItem.price : product.price;
+        newItems.push({ product: product._id, quantity, price });
+    }
+
+    // Items removed entirely from the order — restore their full reserved stock
+    for (const [pid, oldItem] of oldItemsMap) {
+        if (!requestedMap.has(pid)) {
+            stockDeltas.push({ productId: oldItem.product, delta: oldItem.quantity });
+        }
+    }
+
+    if (errors.length > 0) {
+        return res.status(400).json({ success: false, message: 'خطأ في الكميات', errors });
+    }
+
+    const deductOps = stockDeltas
+        .filter(op => op.delta < 0)
+        .map(op => ({
+            updateOne: {
+                filter: { _id: op.productId, stock: { $gte: -op.delta } },
+                update: { $inc: { stock: op.delta, totalOrdered: -op.delta } }
+            }
+        }));
+    const restoreOps = stockDeltas
+        .filter(op => op.delta > 0)
+        .map(op => ({
+            updateOne: {
+                filter: { _id: op.productId },
+                update: { $inc: { stock: op.delta, totalOrdered: -op.delta } }
+            }
+        }));
+
+    if (deductOps.length > 0) {
+        const result = await Product.bulkWrite(deductOps);
+        if (result.modifiedCount !== deductOps.length) {
+            // Race condition — stock changed underneath us. Roll back whatever succeeded.
+            const rollbackOps = stockDeltas
+                .filter(op => op.delta < 0)
+                .map(op => ({
+                    updateOne: {
+                        filter: { _id: op.productId },
+                        update: { $inc: { stock: -op.delta, totalOrdered: op.delta } }
+                    }
+                }));
+            await Product.bulkWrite(rollbackOps);
+            return res.status(409).json({ success: false, message: 'تغيرت الكميات المتوفرة، يرجى المحاولة مرة أخرى' });
+        }
+    }
+
+    if (restoreOps.length > 0) {
+        await Product.bulkWrite(restoreOps);
+    }
+
+    const oldTotal = order.total;
+    const newTotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    order.items = newItems;
+    order.total = newTotal;
+    await order.save();
+
+    const totalDiff = newTotal - oldTotal;
+    if (totalDiff !== 0) {
+        await recordTransaction({
+            userId: order.customer,
+            type: totalDiff > 0 ? 'adjustment_debit' : 'adjustment_credit',
+            amount: Math.abs(totalDiff),
+            orderId: order._id,
+            recordedById: req.admin?._id,
+            notes: `تعديل الطلب رقم #${order._id} بواسطة الإدارة (الإجمالي من ${oldTotal} إلى ${newTotal})`
+        });
+    }
+
+    const populated = await Order.findById(order._id)
+        .populate('customer', 'username fullName phoneNumber')
+        .populate('items.product', 'name image price stock minOrderQty maxOrderQty');
+
+    res.json({ success: true, data: populated });
 };
 
 // @desc    Get products list
