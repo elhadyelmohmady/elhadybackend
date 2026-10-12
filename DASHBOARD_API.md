@@ -280,7 +280,93 @@ curl -X PUT http://localhost:3000/api/dashboard/brands/brand_id \
 
 ---
 
-### 6. **Admin Management** 🔐
+### 6. **Coupons Management** 🎟️
+| Method | Endpoint | Permission | الوصف |
+|--------|----------|------------|-------|
+| GET | `/api/dashboard/coupons?page=1&limit=20&search=&status=&isActive=` | `viewCoupons` | قائمة الكوبونات (مقسمة وفلاتر) |
+| GET | `/api/dashboard/coupons/:id` | `viewCoupons` | تفاصيل كوبون واحد مع إحصائيات الاستخدام |
+| GET | `/api/dashboard/coupons/:id/usages` | `viewCoupons` | سجل استخدامات الكوبون والعملاء والطلبات |
+| POST | `/api/dashboard/coupons` | `manageCoupons` | إنشاء كوبون خصم جديد |
+| PUT | `/api/dashboard/coupons/:id` | `manageCoupons` | تعديل كوبون |
+| PATCH | `/api/dashboard/coupons/:id/toggle-status` | `manageCoupons` | تفعيل / تعطيل الكوبون فوراً |
+| DELETE | `/api/dashboard/coupons/:id` | `manageCoupons` | حذف كوبون |
+
+#### Create Coupon
+**Body:**
+```json
+{
+  "code": "EID2026",
+  "description": "خصم عيد الفطر المبارك",
+  "discountType": "percentage", // "percentage" أو "fixed"
+  "discountValue": 15, // 15% أو 50 جنيه
+  "maxDiscountAmount": 100, // اختياري: أقصى قيمة للخصم عند النسبة المئوية
+  "minOrderAmount": 300, // الحد الأدنى لقيمة الطلب لتطبيق الكوبون
+  "startDate": "2026-04-01T00:00:00.000Z", // اختياري (الافتراضي: الآن)
+  "expiryDate": "2026-05-01T23:59:59.000Z", // إجباري: تاريخ انتهاء الكوبون
+  "usageLimit": 500, // اختياري: إجمالي عدد مرات استخدام الكوبون للجميع (null = غير محدود)
+  "userUsageLimit": 2, // الحد الأقصى للاستخدام لكل عميل (الافتراضي: 1)
+  "isActive": true
+}
+```
+
+#### Update Coupon
+**Body:** (جميع الحقول اختيارية)
+```json
+{
+  "discountValue": 20,
+  "expiryDate": "2026-06-01T23:59:59.000Z",
+  "userUsageLimit": 3,
+  "isActive": true
+}
+```
+
+#### Mobile API - فحص وتطبيق الكوبون قبل الطلب
+| Method | Endpoint | Auth | الوصف |
+|--------|----------|------|-------|
+| POST | `/api/coupons/validate` | User Bearer Token | فحص صلاحية الكوبون وحساب قيمة الخصم للسلة |
+| GET | `/api/coupons/available` | User Bearer Token | عرض الكوبونات المتاحة والمؤهل لها العميل الحالي |
+
+**Validate Coupon Request:**
+```json
+{
+  "code": "EID2026",
+  "total": 500
+}
+```
+
+**Validate Coupon Response:**
+```json
+{
+  "success": true,
+  "valid": true,
+  "message": "الكوبون صالح للاستخدام",
+  "coupon": {
+    "code": "EID2026",
+    "discountType": "percentage",
+    "discountValue": 15,
+    "minOrderAmount": 300,
+    "maxDiscountAmount": 100,
+    "remainingUserUsages": 1
+  },
+  "subtotal": 500,
+  "discountAmount": 75,
+  "finalTotal": 425
+}
+```
+
+**إنشاء طلب مع الكوبون:**
+عند استدعاء `POST /api/orders` أرسل حقل `couponCode`:
+```json
+{
+  "items": [{ "product": "product_id", "quantity": 2 }],
+  "couponCode": "EID2026",
+  "paymentMethod": "cash_on_delivery"
+}
+```
+
+---
+
+### 7. **Admin Management** 🔐
 | Method | Endpoint | Permission | الوصف |
 |--------|----------|------------|-------|
 | GET | `/api/dashboard/admins` | `manageAdmins` | قائمة الأدمنز |

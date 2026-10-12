@@ -36,6 +36,8 @@ const adminSchema = new mongoose.Schema({
         manageAdmins: { type: Boolean, default: false },
         viewSettings: { type: Boolean, default: true },
         manageSettings: { type: Boolean, default: false },
+        viewCoupons: { type: Boolean, default: true },
+        manageCoupons: { type: Boolean, default: false },
         sendNotifications: { type: Boolean, default: false }
     }
 }, {
@@ -81,6 +83,8 @@ adminSchema.methods.syncSuperAdminPermissions = function () {
             manageAdmins: true,
             viewSettings: true,
             manageSettings: true,
+            viewCoupons: true,
+            manageCoupons: true,
             sendNotifications: true
         };
     }

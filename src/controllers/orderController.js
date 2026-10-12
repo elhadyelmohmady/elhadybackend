@@ -3,6 +3,7 @@ import Product from '../models/Product.js';
 import Setting from '../models/Setting.js';
 import SavedLocation from '../models/SavedLocation.js';
 import User from '../models/User.js';
+import Coupon from '../models/Coupon.js';
 import { getUserAccountSummary, recordTransaction } from '../services/accountService.js';
 import { notifyNewOrder, notifyOrderCancelled } from '../services/notificationService.js';
 
@@ -85,21 +86,44 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ message: 'خطأ في الكميات', errors });
     }
 
-    // Build order items with server-side prices and calculate total
+    // Build order items with server-side prices and calculate subtotal
     const orderItems = items.map(item => {
         const product = productMap.get(item.product);
         return { product: product._id, quantity: item.quantity, price: product.price };
     });
 
-    const total = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     // Check minimum order total
     const settings = await Setting.findOne({ key: 'general' }).lean();
     const minOrderTotal = settings?.minOrderTotal || 0;
-    if (total < minOrderTotal) {
+    if (subtotal < minOrderTotal) {
         return res.status(400).json({
-            message: `الحد الأدنى لقيمة الطلب ${minOrderTotal} جنيه. إجمالي طلبك: ${total} جنيه`
+            message: `الحد الأدنى لقيمة الطلب ${minOrderTotal} جنيه. إجمالي طلبك: ${subtotal} جنيه`
         });
+    }
+
+    // Coupon validation and discount calculation
+    let appliedCoupon = null;
+    let discountAmount = 0;
+    let finalTotal = subtotal;
+
+    if (req.body.couponCode) {
+        const couponCode = String(req.body.couponCode).trim().toUpperCase();
+        const coupon = await Coupon.findOne({ code: couponCode });
+
+        if (!coupon) {
+            return res.status(400).json({ message: 'كود الكوبون غير صحيح' });
+        }
+
+        const validation = coupon.validateForUser(customerId, subtotal, orderItems);
+        if (!validation.isValid) {
+            return res.status(400).json({ message: validation.message });
+        }
+
+        discountAmount = validation.discountAmount;
+        finalTotal = validation.finalTotal;
+        appliedCoupon = coupon;
     }
 
     const requestedPaymentMethod = req.body.paymentMethod || 'cash_on_delivery';
@@ -111,10 +135,10 @@ export const createOrder = async (req, res) => {
             return res.status(400).json({ message: 'عفواً، الدفع بالأجل غير مفعّل لحسابك' });
         }
         if (summary.user.creditLimit > 0) {
-            const potentialBalance = summary.financials.currentBalance + total;
+            const potentialBalance = summary.financials.currentBalance + finalTotal;
             if (potentialBalance > summary.user.creditLimit) {
                 return res.status(400).json({
-                    message: `تم تجاوز الحد الأقصى للائتمان/الأجل. الحد المسموح: ${summary.user.creditLimit} جنيه، الرصيد الحالي: ${summary.financials.currentBalance} جنيه، إجمالي الطلب: ${total} جنيه`
+                    message: `تم تجاوز الحد الأقصى للائتمان/الأجل. الحد المسموح: ${summary.user.creditLimit} جنيه، الرصيد الحالي: ${summary.financials.currentBalance} جنيه، إجمالي الطلب: ${finalTotal} جنيه`
                 });
             }
         }
@@ -153,13 +177,27 @@ export const createOrder = async (req, res) => {
     const order = await Order.create({
         customer: customerId,
         items: orderItems,
-        total,
+        subtotal,
+        discount: discountAmount,
+        coupon: appliedCoupon ? {
+            code: appliedCoupon.code,
+            couponId: appliedCoupon._id,
+            discountType: appliedCoupon.discountType,
+            discountValue: appliedCoupon.discountValue,
+            discountAmount: discountAmount
+        } : undefined,
+        total: finalTotal,
         status: 'pending',
         paymentMethod: requestedPaymentMethod,
         address: orderAddress,
         shippingType: shippingType || 'normal',
         estimatedDeliveryDays: deliveryDays
     });
+
+    // Record coupon usage
+    if (appliedCoupon) {
+        await appliedCoupon.applyUsage(customerId, order._id);
+    }
 
     // Map Order paymentMethod enum → Transaction paymentMethod enum
     const paymentMethodMap = {
@@ -175,7 +213,7 @@ export const createOrder = async (req, res) => {
     await recordTransaction({
         userId: customerId,
         type: 'order_debit',
-        amount: total,
+        amount: finalTotal,
         orderId: order._id,
         paymentMethod: transactionPaymentMethod,
         transactionDate: order.createdAt,
@@ -198,6 +236,9 @@ export const createOrder = async (req, res) => {
             _id: populated._id,
             customer: populated.customer,
             items: populated.items,
+            subtotal: populated.subtotal,
+            discount: populated.discount,
+            coupon: populated.coupon,
             total: populated.total,
             status: populated.status,
             paymentMethod: populated.paymentMethod,
@@ -351,6 +392,14 @@ export const cancelOrder = async (req, res) => {
 
     order.status = 'cancelled';
     await order.save(); // pre-save hook restores stock
+
+    // Revert coupon usage if applied
+    if (order.coupon && order.coupon.couponId) {
+        const coupon = await Coupon.findById(order.coupon.couponId);
+        if (coupon) {
+            await coupon.revertUsage(req.user._id, order._id);
+        }
+    }
 
     // Revert debt in user account ledger
     await recordTransaction({

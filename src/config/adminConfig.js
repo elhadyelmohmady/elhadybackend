@@ -8,6 +8,7 @@ import User from '../models/User.js';
 import Order from '../models/Order.js';
 import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
+import Coupon from '../models/Coupon.js';
 import Setting from '../models/Setting.js';
 
 // Register the adapter
@@ -74,6 +75,34 @@ const adminOptions = {
                     _id: { label: 'المعرف' },
                     createdAt: { label: 'تاريخ الإضافة' },
                 }
+            }
+        },
+        {
+            resource: Coupon,
+            options: {
+                label: 'كوبونات الخصم',
+                navigation: { name: 'المتجر', icon: 'Tag' },
+                properties: {
+                    code: { label: 'كود الكوبون' },
+                    description: { label: 'الوصف' },
+                    discountType: { label: 'نوع الخصم' },
+                    discountValue: { label: 'قيمة الخصم' },
+                    maxDiscountAmount: { label: 'الحد الأقصى للخصم' },
+                    minOrderAmount: { label: 'الحد الأدنى للطلب' },
+                    startDate: { label: 'تاريخ البدء' },
+                    expiryDate: { label: 'تاريخ الانتهاء' },
+                    usageLimit: { label: 'إجمالي حد الاستخدام' },
+                    userUsageLimit: { label: 'حد الاستخدام لكل عميل' },
+                    usedCount: { label: 'مرات الاستخدام الفعلي' },
+                    isActive: { label: 'مفعّل' },
+                    applicableCategories: { label: 'التصنيفات المطبقة' },
+                    applicableBrands: { label: 'العلامات التجارية المطبقة' },
+                    applicableProducts: { label: 'المنتجات المطبقة' },
+                    _id: { label: 'المعرف' },
+                    createdAt: { label: 'تاريخ الإنشاء' },
+                },
+                listProperties: ['code', 'discountType', 'discountValue', 'minOrderAmount', 'expiryDate', 'usedCount', 'isActive'],
+                showProperties: ['code', 'description', 'discountType', 'discountValue', 'maxDiscountAmount', 'minOrderAmount', 'startDate', 'expiryDate', 'usageLimit', 'userUsageLimit', 'usedCount', 'isActive', 'applicableCategories', 'applicableBrands', 'applicableProducts', 'createdAt']
             }
         },
         {
@@ -173,6 +202,7 @@ const adminOptions = {
                     Order: 'الطلبات',
                     Category: 'التصنيفات',
                     Brand: 'العلامات التجارية',
+                    Coupon: 'كوبونات الخصم',
                     Setting: 'الإعدادات',
                     dashboard: 'الرئيسية',
                     navigation: 'القائمة الرئيسية',

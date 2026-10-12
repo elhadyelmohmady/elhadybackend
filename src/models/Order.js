@@ -25,6 +25,23 @@ const orderSchema = new mongoose.Schema({
         required: true
     },
     items: [orderItemSchema],
+    subtotal: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    discount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    coupon: {
+        code: { type: String, default: null },
+        couponId: { type: mongoose.Schema.Types.ObjectId, ref: 'Coupon', default: null },
+        discountType: { type: String, enum: ['percentage', 'fixed', null], default: null },
+        discountValue: { type: Number, default: 0 },
+        discountAmount: { type: Number, default: 0 }
+    },
     total: {
         type: Number,
         required: true,

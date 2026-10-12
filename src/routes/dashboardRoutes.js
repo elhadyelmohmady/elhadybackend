@@ -34,6 +34,13 @@ import {
     createBrand,
     updateBrand,
     deleteBrand,
+    getCoupons,
+    getCoupon,
+    createCoupon,
+    updateCoupon,
+    deleteCoupon,
+    toggleCouponStatus,
+    getCouponUsages,
     getSettings,
     updateSettings
 } from '../controllers/dashboardController.js';
@@ -114,6 +121,15 @@ router.get('/brands/:id', requirePermission('viewBrands'), getBrand);
 router.post('/brands', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, createBrand);
 router.put('/brands/:id', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, updateBrand);
 router.delete('/brands/:id', requirePermission('manageBrands'), deleteBrand);
+
+// ==================== COUPON MANAGEMENT ====================
+router.get('/coupons', requirePermission('viewCoupons'), getCoupons);
+router.get('/coupons/:id', requirePermission('viewCoupons'), getCoupon);
+router.get('/coupons/:id/usages', requirePermission('viewCoupons'), getCouponUsages);
+router.post('/coupons', requirePermission('manageCoupons'), createCoupon);
+router.put('/coupons/:id', requirePermission('manageCoupons'), updateCoupon);
+router.patch('/coupons/:id/toggle-status', requirePermission('manageCoupons'), toggleCouponStatus);
+router.delete('/coupons/:id', requirePermission('manageCoupons'), deleteCoupon);
 
 // ==================== NOTIFICATION MANAGEMENT ====================
 router.get('/notifications', getDashboardNotifications);

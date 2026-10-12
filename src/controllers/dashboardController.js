@@ -4,6 +4,7 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
+import Coupon from '../models/Coupon.js';
 import Setting from '../models/Setting.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -414,7 +415,7 @@ export const updateOrderStatus = async (req, res) => {
     order.status = status;
     await order.save();
 
-    // If cancelled and was not cancelled, restore stock
+    // If cancelled and was not cancelled, restore stock and coupon usage
     if (status === 'cancelled' && oldStatus !== 'cancelled') {
         const bulkOps = order.items.map(item => ({
             updateOne: {
@@ -423,6 +424,13 @@ export const updateOrderStatus = async (req, res) => {
             }
         }));
         await Product.bulkWrite(bulkOps);
+
+        if (order.coupon && order.coupon.couponId) {
+            const coupon = await Coupon.findById(order.coupon.couponId);
+            if (coupon) {
+                await coupon.revertUsage(order.customer, order._id);
+            }
+        }
     }
 
     if (oldStatus !== status) {
@@ -1176,4 +1184,290 @@ export const updateSettings = async (req, res) => {
 
     await setting.save();
     res.json({ success: true, data: setting });
+};
+
+// ==================== COUPON MANAGEMENT ====================
+
+// @desc    Get all coupons with filtering & pagination
+// @route   GET /api/dashboard/coupons
+// @access  Private (viewCoupons permission)
+export const getCoupons = async (req, res) => {
+    const { page = 1, limit = 20, search, isActive, status } = req.query;
+    const query = {};
+    const now = new Date();
+
+    if (search) {
+        query.$or = [
+            { code: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+        ];
+    }
+
+    if (isActive !== undefined) {
+        query.isActive = isActive === 'true';
+    }
+
+    if (status === 'active') {
+        query.isActive = true;
+        query.expiryDate = { $gte: now };
+        query.startDate = { $lte: now };
+    } else if (status === 'expired') {
+        query.expiryDate = { $lt: now };
+    } else if (status === 'upcoming') {
+        query.startDate = { $gt: now };
+    }
+
+    const coupons = await Coupon.find(query)
+        .populate('applicableCategories', 'name slug')
+        .populate('applicableBrands', 'name logo')
+        .sort({ createdAt: -1, _id: 1 })
+        .limit(Number(limit))
+        .skip((Number(page) - 1) * Number(limit));
+
+    const total = await Coupon.countDocuments(query);
+
+    res.json({
+        success: true,
+        data: coupons,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / limit)
+        }
+    });
+};
+
+// @desc    Get single coupon details with usage stats
+// @route   GET /api/dashboard/coupons/:id
+// @access  Private (viewCoupons permission)
+export const getCoupon = async (req, res) => {
+    const coupon = await Coupon.findById(req.params.id)
+        .populate('applicableCategories', 'name slug')
+        .populate('applicableBrands', 'name logo')
+        .populate('applicableProducts', 'name price image')
+        .populate('usersUsed.user', 'fullName phoneNumber username');
+
+    if (!coupon) {
+        return res.status(404).json({ success: false, message: 'الكوبون غير موجود' });
+    }
+
+    res.json({ success: true, data: coupon });
+};
+
+// @desc    Create new coupon
+// @route   POST /api/dashboard/coupons
+// @access  Private (manageCoupons permission)
+export const createCoupon = async (req, res) => {
+    try {
+        const {
+            code,
+            description,
+            discountType = 'percentage',
+            discountValue,
+            maxDiscountAmount,
+            minOrderAmount = 0,
+            startDate,
+            expiryDate,
+            usageLimit,
+            userUsageLimit = 1,
+            applicableCategories,
+            applicableBrands,
+            applicableProducts,
+            isActive = true
+        } = req.body;
+
+        if (!code || !expiryDate || discountValue === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: 'يرجى إدخال كود الكوبون، قيمة الخصم، وتاريخ الانتهاء'
+            });
+        }
+
+        const normalizedCode = String(code).trim().toUpperCase();
+
+        const existingCoupon = await Coupon.findOne({ code: normalizedCode });
+        if (existingCoupon) {
+            return res.status(400).json({
+                success: false,
+                message: 'كود الكوبون مستخدم بالفعل، يرجى اختيار كود آخر'
+            });
+        }
+
+        if (discountType === 'percentage' && (discountValue <= 0 || discountValue > 100)) {
+            return res.status(400).json({
+                success: false,
+                message: 'نسبة الخصم يجب أن تكون بين 1% و 100%'
+            });
+        }
+
+        if (discountType === 'fixed' && discountValue <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'قيمة الخصم الثابت يجب أن تكون أكبر من 0'
+            });
+        }
+
+        const start = startDate ? new Date(startDate) : new Date();
+        const expiry = new Date(expiryDate);
+
+        if (expiry <= start) {
+            return res.status(400).json({
+                success: false,
+                message: 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء'
+            });
+        }
+
+        const coupon = await Coupon.create({
+            code: normalizedCode,
+            description,
+            discountType,
+            discountValue: Number(discountValue),
+            maxDiscountAmount: maxDiscountAmount ? Number(maxDiscountAmount) : null,
+            minOrderAmount: Number(minOrderAmount) || 0,
+            startDate: start,
+            expiryDate: expiry,
+            usageLimit: usageLimit ? Number(usageLimit) : null,
+            userUsageLimit: Number(userUsageLimit) || 1,
+            applicableCategories: applicableCategories || [],
+            applicableBrands: applicableBrands || [],
+            applicableProducts: applicableProducts || [],
+            isActive: Boolean(isActive)
+        });
+
+        res.status(201).json({ success: true, data: coupon });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Update coupon
+// @route   PUT /api/dashboard/coupons/:id
+// @access  Private (manageCoupons permission)
+export const updateCoupon = async (req, res) => {
+    try {
+        const coupon = await Coupon.findById(req.params.id);
+        if (!coupon) {
+            return res.status(404).json({ success: false, message: 'الكوبون غير موجود' });
+        }
+
+        const {
+            code,
+            description,
+            discountType,
+            discountValue,
+            maxDiscountAmount,
+            minOrderAmount,
+            startDate,
+            expiryDate,
+            usageLimit,
+            userUsageLimit,
+            applicableCategories,
+            applicableBrands,
+            applicableProducts,
+            isActive
+        } = req.body;
+
+        if (code) {
+            const normalizedCode = String(code).trim().toUpperCase();
+            if (normalizedCode !== coupon.code) {
+                const existing = await Coupon.findOne({ code: normalizedCode });
+                if (existing) {
+                    return res.status(400).json({ success: false, message: 'كود الكوبون مستخدم بالفعل' });
+                }
+                coupon.code = normalizedCode;
+            }
+        }
+
+        if (discountType !== undefined) coupon.discountType = discountType;
+        if (discountValue !== undefined) {
+            const val = Number(discountValue);
+            if (coupon.discountType === 'percentage' && (val <= 0 || val > 100)) {
+                return res.status(400).json({ success: false, message: 'نسبة الخصم يجب أن تكون بين 1% و 100%' });
+            }
+            if (coupon.discountType === 'fixed' && val <= 0) {
+                return res.status(400).json({ success: false, message: 'قيمة الخصم يجب أن تكون أكبر من 0' });
+            }
+            coupon.discountValue = val;
+        }
+
+        if (description !== undefined) coupon.description = description;
+        if (maxDiscountAmount !== undefined) coupon.maxDiscountAmount = maxDiscountAmount === '' ? null : Number(maxDiscountAmount);
+        if (minOrderAmount !== undefined) coupon.minOrderAmount = Number(minOrderAmount);
+        if (startDate !== undefined) coupon.startDate = new Date(startDate);
+        if (expiryDate !== undefined) coupon.expiryDate = new Date(expiryDate);
+        if (usageLimit !== undefined) coupon.usageLimit = usageLimit === '' ? null : Number(usageLimit);
+        if (userUsageLimit !== undefined) coupon.userUsageLimit = Number(userUsageLimit);
+        if (applicableCategories !== undefined) coupon.applicableCategories = applicableCategories;
+        if (applicableBrands !== undefined) coupon.applicableBrands = applicableBrands;
+        if (applicableProducts !== undefined) coupon.applicableProducts = applicableProducts;
+        if (isActive !== undefined) coupon.isActive = Boolean(isActive);
+
+        if (coupon.expiryDate <= coupon.startDate) {
+            return res.status(400).json({ success: false, message: 'تاريخ الانتهاء يجب أن يكون بعد تاريخ البدء' });
+        }
+
+        await coupon.save();
+        res.json({ success: true, data: coupon });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Toggle coupon active status
+// @route   PATCH /api/dashboard/coupons/:id/toggle-status
+// @access  Private (manageCoupons permission)
+export const toggleCouponStatus = async (req, res) => {
+    const coupon = await Coupon.findById(req.params.id);
+    if (!coupon) {
+        return res.status(404).json({ success: false, message: 'الكوبون غير موجود' });
+    }
+
+    coupon.isActive = !coupon.isActive;
+    await coupon.save();
+
+    res.json({
+        success: true,
+        message: coupon.isActive ? 'تم تفعيل الكوبون بنجاح' : 'تم تعطيل الكوبون بنجاح',
+        data: { _id: coupon._id, code: coupon.code, isActive: coupon.isActive }
+    });
+};
+
+// @desc    Delete coupon (soft-delete)
+// @route   DELETE /api/dashboard/coupons/:id
+// @access  Private (manageCoupons permission)
+export const deleteCoupon = async (req, res) => {
+    const coupon = await Coupon.findByIdAndUpdate(req.params.id, { deleteFlag: 1 }, { new: true });
+    if (!coupon) {
+        return res.status(404).json({ success: false, message: 'الكوبون غير موجود' });
+    }
+
+    res.json({ success: true, message: 'تم حذف الكوبون بنجاح' });
+};
+
+// @desc    Get detailed user usage log for a coupon
+// @route   GET /api/dashboard/coupons/:id/usages
+// @access  Private (viewCoupons permission)
+export const getCouponUsages = async (req, res) => {
+    const coupon = await Coupon.findById(req.params.id)
+        .populate('usersUsed.user', 'fullName phoneNumber username')
+        .populate({
+            path: 'usersUsed.orders',
+            select: 'total status createdAt paymentMethod'
+        });
+
+    if (!coupon) {
+        return res.status(404).json({ success: false, message: 'الكوبون غير موجود' });
+    }
+
+    res.json({
+        success: true,
+        data: {
+            code: coupon.code,
+            usedCount: coupon.usedCount,
+            usageLimit: coupon.usageLimit,
+            userUsageLimit: coupon.userUsageLimit,
+            users: coupon.usersUsed
+        }
+    });
 };
