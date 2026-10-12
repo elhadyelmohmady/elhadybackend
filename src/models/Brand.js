@@ -14,8 +14,14 @@ const brandSchema = new mongoose.Schema({
     description: {
         type: String,
         default: null
-    }
+    },
+    categories: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category'
+    }]
 }, { timestamps: true });
+
+brandSchema.index({ categories: 1 });
 
 const Brand = mongoose.model('Brand', brandSchema);
 export default Brand;

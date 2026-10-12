@@ -70,6 +70,7 @@ const adminOptions = {
                     name: { label: 'اسم العلامة' },
                     logo: { label: 'الشعار (Logo)' },
                     description: { label: 'الوصف' },
+                    categories: { label: 'التصنيفات' },
                     _id: { label: 'المعرف' },
                     createdAt: { label: 'تاريخ الإضافة' },
                 }

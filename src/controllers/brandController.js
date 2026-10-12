@@ -7,14 +7,22 @@ import Product from '../models/Product.js';
  */
 export const getBrands = async (req, res) => {
     try {
-        const { search } = req.query;
+        const { search, category } = req.query;
 
         const filter = {};
         if (search) {
             filter.name = { $regex: search, $options: 'i' };
         }
 
-        const brands = await Brand.find(filter);
+        if (category) {
+            const productBrandIds = await Product.find({ categories: category, brand: { $ne: null } }).distinct('brand');
+            filter.$or = [
+                { categories: category },
+                { _id: { $in: productBrandIds } }
+            ];
+        }
+
+        const brands = await Brand.find(filter).populate('categories', 'name slug image');
         res.status(200).json({
             success: true,
             count: brands.length,

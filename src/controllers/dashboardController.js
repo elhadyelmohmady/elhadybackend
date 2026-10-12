@@ -927,14 +927,23 @@ export const deleteCategory = async (req, res) => {
 // @route   GET /api/dashboard/brands
 // @access  Private (viewBrands permission)
 export const getBrands = async (req, res) => {
-    const { page = 1, limit = 50, search } = req.query;
+    const { page = 1, limit = 50, search, category } = req.query;
     const query = {};
 
     if (search) {
         query.name = { $regex: search, $options: 'i' };
     }
 
+    if (category) {
+        const productBrandIds = await Product.find({ categories: category, brand: { $ne: null } }).distinct('brand');
+        query.$or = [
+            { categories: category },
+            { _id: { $in: productBrandIds } }
+        ];
+    }
+
     const brands = await Brand.find(query)
+        .populate('categories', 'name slug image')
         .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -957,7 +966,8 @@ export const getBrands = async (req, res) => {
 // @route   GET /api/dashboard/brands/:id
 // @access  Private (viewBrands permission)
 export const getBrand = async (req, res) => {
-    const brand = await Brand.findById(req.params.id);
+    const brand = await Brand.findById(req.params.id)
+        .populate('categories', 'name slug image');
     if (!brand) {
         return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
     }
@@ -965,12 +975,42 @@ export const getBrand = async (req, res) => {
     res.json({ success: true, data: brand });
 };
 
+// @desc    Get brands for a category (dashboard)
+// @route   GET /api/dashboard/categories/:id/brands
+// @access  Private (viewBrands permission)
+export const getCategoryBrands = async (req, res) => {
+    try {
+        const categoryId = req.params.id;
+        const category = await Category.findById(categoryId);
+        if (!category) {
+            return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
+        }
+
+        const productBrandIds = await Product.find({ categories: categoryId, brand: { $ne: null } }).distinct('brand');
+        const brands = await Brand.find({
+            $or: [
+                { categories: categoryId },
+                { _id: { $in: productBrandIds } }
+            ]
+        }).populate('categories', 'name slug image').sort({ name: 1 });
+
+        res.json({
+            success: true,
+            category: { _id: category._id, name: category.name, slug: category.slug },
+            count: brands.length,
+            data: brands
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
 // @desc    Create new brand
 // @route   POST /api/dashboard/brands
 // @access  Private (manageBrands permission)
 export const createBrand = async (req, res) => {
     try {
-        const { name, slug, description } = req.body;
+        const { name, slug, description, categories } = req.body;
         let logo = req.body.logo || null;
 
         // Process uploaded logo if present
@@ -990,14 +1030,29 @@ export const createBrand = async (req, res) => {
             return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
         }
 
+        let parsedCategories = [];
+        if (categories) {
+            if (Array.isArray(categories)) {
+                parsedCategories = categories;
+            } else if (typeof categories === 'string') {
+                try {
+                    parsedCategories = JSON.parse(categories);
+                } catch {
+                    parsedCategories = [categories];
+                }
+            }
+        }
+
         const brand = await Brand.create({
             name,
             slug,
             description,
+            categories: parsedCategories,
             logo
         });
 
-        res.status(201).json({ success: true, data: brand });
+        const populatedBrand = await Brand.findById(brand._id).populate('categories', 'name slug image');
+        res.status(201).json({ success: true, data: populatedBrand });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -1008,7 +1063,7 @@ export const createBrand = async (req, res) => {
 // @access  Private (manageBrands permission)
 export const updateBrand = async (req, res) => {
     try {
-        const { name, slug, description } = req.body;
+        const { name, slug, description, categories } = req.body;
 
         const brand = await Brand.findById(req.params.id);
         if (!brand) {
@@ -1043,10 +1098,25 @@ export const updateBrand = async (req, res) => {
 
         if (name) brand.name = name;
         if (slug) brand.slug = slug;
-        if (description) brand.description = description;
+        if (description !== undefined) brand.description = description;
+
+        if (categories !== undefined) {
+            if (Array.isArray(categories)) {
+                brand.categories = categories;
+            } else if (typeof categories === 'string') {
+                try {
+                    brand.categories = JSON.parse(categories);
+                } catch {
+                    brand.categories = [categories];
+                }
+            } else {
+                brand.categories = [];
+            }
+        }
 
         await brand.save();
-        res.json({ success: true, data: brand });
+        const populatedBrand = await Brand.findById(brand._id).populate('categories', 'name slug image');
+        res.json({ success: true, data: populatedBrand });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

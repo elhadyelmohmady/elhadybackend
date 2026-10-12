@@ -1,5 +1,6 @@
 import Category from '../models/Category.js';
 import Product from '../models/Product.js';
+import Brand from '../models/Brand.js';
 
 /**
  * Get all active categories
@@ -56,6 +57,36 @@ export const getCategoryProducts = async (req, res) => {
                 pages: Math.ceil(total / limit)
             },
             data: products
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+/**
+ * Get brands for a specific category
+ * GET /api/categories/:id/brands
+ */
+export const getCategoryBrands = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) {
+            return res.status(404).json({ success: false, message: 'Category not found' });
+        }
+
+        const productBrandIds = await Product.find({ categories: req.params.id, brand: { $ne: null } }).distinct('brand');
+        const brands = await Brand.find({
+            $or: [
+                { categories: req.params.id },
+                { _id: { $in: productBrandIds } }
+            ]
+        }).sort({ name: 1 });
+
+        res.status(200).json({
+            success: true,
+            category: { _id: category._id, name: category.name, slug: category.slug },
+            count: brands.length,
+            data: brands
         });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

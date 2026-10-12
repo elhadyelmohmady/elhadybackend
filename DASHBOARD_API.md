@@ -179,12 +179,12 @@ curl -X PUT http://localhost:3000/api/dashboard/products/product_id \
 |--------|----------|------------|-------|
 | GET | `/api/dashboard/categories?page=1&limit=50&search=&isActive=` | `viewCategories` | قائمة التصنيفات (مقسمة) |
 | GET | `/api/dashboard/categories/:id` | `viewCategories` | تفاصيل تصنيف واحد |
+| GET | `/api/dashboard/categories/:id/brands` | `viewCategories` | العلامات التجارية التابعة لتصنيف معين |
 | POST | `/api/dashboard/categories` | `manageCategories` | إضافة تصنيف جديد |
 | PUT | `/api/dashboard/categories/:id` | `manageCategories` | تعديل تصنيف |
 | DELETE | `/api/dashboard/categories/:id` | `manageCategories` | حذف تصنيف |
 
 #### Create Category
-**Body:**
 ```json
 {
   "name": "اسم التصنيف",
@@ -214,8 +214,8 @@ curl -X PUT http://localhost:3000/api/dashboard/products/product_id \
 ### 5. **Brands Management** 🏷️
 | Method | Endpoint | Permission | الوصف |
 |--------|----------|------------|-------|
-| GET | `/api/dashboard/brands?page=1&limit=50&search=` | `viewBrands` | قائمة العلامات التجارية (مقسمة) |
-| GET | `/api/dashboard/brands/:id` | `viewBrands` | تفاصيل علامة تجارية واحدة |
+| GET | `/api/dashboard/brands?page=1&limit=50&search=&category=` | `viewBrands` | قائمة العلامات التجارية (مقسمة وفلترة بالتصنيف) |
+| GET | `/api/dashboard/brands/:id` | `viewBrands` | تفاصيل علامة تجارية واحدة مع تصنيفاتها |
 | POST | `/api/dashboard/brands` | `manageBrands` | إضافة علامة تجارية جديدة |
 | PUT | `/api/dashboard/brands/:id` | `manageBrands` | تعديل علامة تجارية |
 | DELETE | `/api/dashboard/brands/:id` | `manageBrands` | حذف علامة تجارية |
@@ -227,6 +227,7 @@ curl -X PUT http://localhost:3000/api/dashboard/products/product_id \
 - `name` (text, required): اسم العلامة التجارية
 - `slug` (text, required): الرابط الفريد (slug)
 - `description` (text, optional): وصف العلامة التجارية
+- `categories` (text/array, optional): معرفات التصنيفات التابعة لها (IDs)
 - `logo` (file, optional): شعار العلامة التجارية (JPEG, PNG, GIF, WebP - max 5MB)
 
 **Example (cURL):**

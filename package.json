@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
-    "seed:data": "node src/scripts/seedData.js"
+    "seed:data": "node src/scripts/seedData.js",
+    "sync:brands": "node src/scripts/syncBrandsWithCategories.js",
+    "update:brands": "node src/scripts/updateBrandsAndKeywords.js"
   },
   "dependencies": {
     "@adminjs/express": "^6.1.1",

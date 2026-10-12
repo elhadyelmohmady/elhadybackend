@@ -116,6 +116,18 @@ const updateBrandsAndKeywords = async () => {
     const unusedBrands = await Brand.deleteMany({ _id: { $nin: usedBrandIds.filter(Boolean) } });
     console.log(`  Removed ${unusedBrands.deletedCount} unused brands`);
 
+    // Sync categories to brands
+    const activeBrands = await Brand.find({});
+    for (const b of activeBrands) {
+        const catIds = await Product.distinct('categories', {
+            brand: b._id,
+            categories: { $exists: true, $ne: [] }
+        });
+        b.categories = catIds;
+        await b.save();
+    }
+    console.log(`  Synced categories for ${activeBrands.length} brands`);
+
     await mongoose.disconnect();
     console.log('\nDone!');
     process.exit(0);

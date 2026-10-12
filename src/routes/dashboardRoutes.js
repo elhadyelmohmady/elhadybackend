@@ -28,6 +28,7 @@ import {
     createCategory,
     updateCategory,
     deleteCategory,
+    getCategoryBrands,
     getBrands,
     getBrand,
     createBrand,
@@ -102,6 +103,7 @@ router.delete('/products/:id', requirePermission('manageProducts'), deleteProduc
 // ==================== CATEGORY MANAGEMENT ====================
 router.get('/categories', requirePermission('viewCategories'), getCategories);
 router.get('/categories/:id', requirePermission('viewCategories'), getCategory);
+router.get('/categories/:id/brands', requirePermission('viewCategories'), getCategoryBrands);
 router.post('/categories', requirePermission('manageCategories'), createCategory);
 router.put('/categories/:id', requirePermission('manageCategories'), updateCategory);
 router.delete('/categories/:id', requirePermission('manageCategories'), deleteCategory);
