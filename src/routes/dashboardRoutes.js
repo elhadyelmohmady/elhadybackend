@@ -55,6 +55,7 @@ import { productUpload, brandUpload, companyUpload, handleUploadError } from '..
 
 import accountRoutes from './accountRoutes.js';
 import { getFinancialOverview } from '../controllers/accountController.js';
+import { getCompanyProducts, getCompanyBrands } from '../controllers/companyController.js';
 import {
     getDashboardNotifications,
     getDashboardUnreadCount,
@@ -132,6 +133,8 @@ router.delete('/brands/:id', requirePermission('manageBrands'), deleteBrand);
 // ==================== COMPANY MANAGEMENT ====================
 router.get('/companies', requirePermission('viewCompanies'), getDashboardCompanies);
 router.get('/companies/:id', requirePermission('viewCompanies'), getDashboardCompany);
+router.get('/companies/:id/products', getCompanyProducts);
+router.get('/companies/:id/brands', getCompanyBrands);
 router.post('/companies', requirePermission('manageCompanies'), companyUpload.single('logo'), handleUploadError, createDashboardCompany);
 router.put('/companies/:id', requirePermission('manageCompanies'), companyUpload.single('logo'), handleUploadError, updateDashboardCompany);
 router.delete('/companies/:id', requirePermission('manageCompanies'), deleteDashboardCompany);

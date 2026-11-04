@@ -596,7 +596,7 @@ export const updateOrder = async (req, res) => {
 // @route   GET /api/dashboard/products
 // @access  Private (viewProducts permission)
 export const getProducts = async (req, res) => {
-    const { page = 1, limit = 20, search, brand, category, lowStock, sort } = req.query;
+    const { page = 1, limit = 20, search, brand, category, company, lowStock, sort } = req.query;
     const query = {};
 
     if (search) {
@@ -605,6 +605,10 @@ export const getProducts = async (req, res) => {
 
     if (brand) {
         query.brand = brand;
+    }
+
+    if (company) {
+        query.company = company;
     }
 
     if (category) {
@@ -627,6 +631,7 @@ export const getProducts = async (req, res) => {
     const products = await Product.find(query)
         .collation({ locale: 'ar' })
         .populate('brand', 'name logo')
+        .populate('company', 'name logo')
         .populate('categories', 'name')
         .sort(sortBy)
         .limit(limit * 1)
@@ -652,6 +657,7 @@ export const getProducts = async (req, res) => {
 export const getProduct = async (req, res) => {
     const product = await Product.findById(req.params.id)
         .populate('brand', 'name logo')
+        .populate('company', 'name logo')
         .populate('categories', 'name');
 
     if (!product) {
@@ -1038,6 +1044,7 @@ export const getBrands = async (req, res) => {
 
     const brands = await Brand.find(query)
         .populate('categories', 'name slug image')
+        .populate('company', 'name logo')
         .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -1061,7 +1068,8 @@ export const getBrands = async (req, res) => {
 // @access  Private (viewBrands permission)
 export const getBrand = async (req, res) => {
     const brand = await Brand.findById(req.params.id)
-        .populate('categories', 'name slug image');
+        .populate('categories', 'name slug image')
+        .populate('company', 'name logo');
     if (!brand) {
         return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
     }
@@ -1110,7 +1118,7 @@ export const getCategoryBrands = async (req, res) => {
 // @access  Private (manageBrands permission)
 export const createBrand = async (req, res) => {
     try {
-        const { name, slug, description, categories } = req.body;
+        const { name, slug, description, categories, company } = req.body;
         let logo = req.body.logo || null;
 
         // Process uploaded logo if present
@@ -1148,10 +1156,17 @@ export const createBrand = async (req, res) => {
             slug,
             description,
             categories: parsedCategories,
+            company: company || null,
             logo
         });
 
-        const populatedBrand = await Brand.findById(brand._id).populate('categories', 'name slug image');
+        if (company) {
+            await Company.findByIdAndUpdate(company, { $addToSet: { brands: brand._id } });
+        }
+
+        const populatedBrand = await Brand.findById(brand._id)
+            .populate('categories', 'name slug image')
+            .populate('company', 'name logo');
         res.status(201).json({ success: true, data: populatedBrand });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -1163,7 +1178,7 @@ export const createBrand = async (req, res) => {
 // @access  Private (manageBrands permission)
 export const updateBrand = async (req, res) => {
     try {
-        const { name, slug, description, categories } = req.body;
+        const { name, slug, description, categories, company } = req.body;
 
         const brand = await Brand.findById(req.params.id);
         if (!brand) {
@@ -1200,6 +1215,18 @@ export const updateBrand = async (req, res) => {
         if (slug) brand.slug = slug;
         if (description !== undefined) brand.description = description;
 
+        if (company !== undefined) {
+            const oldCompany = brand.company;
+            const newCompany = company || null;
+            brand.company = newCompany;
+            if (oldCompany && String(oldCompany) !== String(newCompany)) {
+                await Company.findByIdAndUpdate(oldCompany, { $pull: { brands: brand._id } });
+            }
+            if (newCompany && String(oldCompany) !== String(newCompany)) {
+                await Company.findByIdAndUpdate(newCompany, { $addToSet: { brands: brand._id } });
+            }
+        }
+
         if (categories !== undefined) {
             if (Array.isArray(categories)) {
                 brand.categories = categories;
@@ -1215,7 +1242,9 @@ export const updateBrand = async (req, res) => {
         }
 
         await brand.save();
-        const populatedBrand = await Brand.findById(brand._id).populate('categories', 'name slug image');
+        const populatedBrand = await Brand.findById(brand._id)
+            .populate('categories', 'name slug image')
+            .populate('company', 'name logo');
         res.json({ success: true, data: populatedBrand });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
