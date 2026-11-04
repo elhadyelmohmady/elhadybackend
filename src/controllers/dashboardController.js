@@ -1410,7 +1410,10 @@ export const updateSettings = async (req, res) => {
         latestVersion,
         updateMessage,
         androidStoreUrl,
-        iosStoreUrl
+        iosStoreUrl,
+        whatsappNumber,
+        supportPhone,
+        supportEmail
     } = req.body;
     let setting = await Setting.findOne({ key: 'general' });
     if (!setting) {
@@ -1425,6 +1428,9 @@ export const updateSettings = async (req, res) => {
     if (updateMessage !== undefined) setting.updateMessage = updateMessage;
     if (androidStoreUrl !== undefined) setting.androidStoreUrl = androidStoreUrl;
     if (iosStoreUrl !== undefined) setting.iosStoreUrl = iosStoreUrl;
+    if (whatsappNumber !== undefined) setting.whatsappNumber = whatsappNumber;
+    if (supportPhone !== undefined) setting.supportPhone = supportPhone;
+    if (supportEmail !== undefined) setting.supportEmail = supportEmail;
 
     await setting.save();
     res.json({ success: true, data: setting });

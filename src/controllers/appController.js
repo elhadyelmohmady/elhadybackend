@@ -16,7 +16,11 @@ export const getAppStatus = async (req, res) => {
             latestVersion: setting?.latestVersion || '',
             updateMessage: setting?.updateMessage || 'يتوفر إصدار جديد من التطبيق يحتوي على تحسينات وإصلاحات.',
             androidStoreUrl: setting?.androidStoreUrl || '',
-            iosStoreUrl: setting?.iosStoreUrl || ''
+            iosStoreUrl: setting?.iosStoreUrl || '',
+            // Contact info that feeds the mobile app's contact buttons (WhatsApp / call / email).
+            whatsappNumber: setting?.whatsappNumber || '',
+            supportPhone: setting?.supportPhone || '',
+            supportEmail: setting?.supportEmail || ''
         }
     });
 };

@@ -48,6 +48,18 @@ const settingSchema = new mongoose.Schema({
     iosStoreUrl: {
         type: String,
         default: ''
+    },
+    whatsappNumber: {
+        type: String,
+        default: ''
+    },
+    supportPhone: {
+        type: String,
+        default: ''
+    },
+    supportEmail: {
+        type: String,
+        default: ''
     }
 }, {
     timestamps: true
