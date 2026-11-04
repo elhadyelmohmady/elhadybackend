@@ -1,5 +1,6 @@
 import Brand from '../models/Brand.js';
 import Product from '../models/Product.js';
+import Category from '../models/Category.js';
 
 /**
  * Get all brands
@@ -15,9 +16,15 @@ export const getBrands = async (req, res) => {
         }
 
         if (category) {
-            const productBrandIds = await Product.find({ categories: category, brand: { $ne: null } }).distinct('brand');
+            const subCategoryIds = await Category.find({ parentCategory: category }).distinct('_id');
+            const allCategoryIds = [category, ...subCategoryIds];
+            const productBrandIds = await Product.find({
+                categories: { $in: allCategoryIds },
+                brand: { $ne: null },
+                deleteFlag: { $ne: 1 }
+            }).distinct('brand');
             filter.$or = [
-                { categories: category },
+                { categories: { $in: allCategoryIds } },
                 { _id: { $in: productBrandIds } }
             ];
         }

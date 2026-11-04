@@ -1023,9 +1023,15 @@ export const getBrands = async (req, res) => {
     }
 
     if (category) {
-        const productBrandIds = await Product.find({ categories: category, brand: { $ne: null } }).distinct('brand');
+        const subCategoryIds = await Category.find({ parentCategory: category }).distinct('_id');
+        const allCategoryIds = [category, ...subCategoryIds];
+        const productBrandIds = await Product.find({
+            categories: { $in: allCategoryIds },
+            brand: { $ne: null },
+            deleteFlag: { $ne: 1 }
+        }).distinct('brand');
         query.$or = [
-            { categories: category },
+            { categories: { $in: allCategoryIds } },
             { _id: { $in: productBrandIds } }
         ];
     }
@@ -1074,10 +1080,16 @@ export const getCategoryBrands = async (req, res) => {
             return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
         }
 
-        const productBrandIds = await Product.find({ categories: categoryId, brand: { $ne: null } }).distinct('brand');
+        const subCategoryIds = await Category.find({ parentCategory: categoryId }).distinct('_id');
+        const allCategoryIds = [categoryId, ...subCategoryIds];
+        const productBrandIds = await Product.find({
+            categories: { $in: allCategoryIds },
+            brand: { $ne: null },
+            deleteFlag: { $ne: 1 }
+        }).distinct('brand');
         const brands = await Brand.find({
             $or: [
-                { categories: categoryId },
+                { categories: { $in: allCategoryIds } },
                 { _id: { $in: productBrandIds } }
             ]
         }).populate('categories', 'name slug image').sort({ name: 1 });

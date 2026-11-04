@@ -20,6 +20,8 @@ export default function softDeletePlugin(schema) {
     schema.pre('find', excludeDeleted);
     schema.pre('findOne', excludeDeleted);
     schema.pre('countDocuments', excludeDeleted);
+    schema.pre('count', excludeDeleted);
+    schema.pre('distinct', excludeDeleted);
     schema.pre('findOneAndUpdate', excludeDeleted);
     schema.pre('updateMany', excludeDeleted);
     schema.pre('updateOne', excludeDeleted);
