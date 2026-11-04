@@ -4,11 +4,12 @@ import Order from '../models/Order.js';
 import Product from '../models/Product.js';
 import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
+import Company from '../models/Company.js';
 import Coupon from '../models/Coupon.js';
 import Setting from '../models/Setting.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { processProductImage, processBrandLogo, deleteFile } from '../utils/imageUpload.js';
+import { processProductImage, processBrandLogo, processCompanyLogo, deleteFile } from '../utils/imageUpload.js';
 import { notifyOrderStatusChanged, notifyNewUser } from '../services/notificationService.js';
 import { recordTransaction } from '../services/accountService.js';
 
@@ -1139,6 +1140,249 @@ export const deleteBrand = async (req, res) => {
         return res.status(404).json({ success: false, message: 'العلامة التجارية غير موجودة' });
     }
     res.json({ success: true, message: 'تم حذف العلامة التجارية بنجاح' });
+};
+
+// ==================== COMPANIES MANAGEMENT ====================
+
+// @desc    Get all companies (dashboard)
+// @route   GET /api/dashboard/companies
+// @access  Private (viewCompanies permission)
+export const getDashboardCompanies = async (req, res) => {
+    try {
+        const { page = 1, limit = 50, search, category, brand } = req.query;
+        const query = {};
+
+        if (search) {
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        if (category) {
+            query.categories = category;
+        }
+
+        if (brand) {
+            query.brands = brand;
+        }
+
+        const companies = await Company.find(query)
+            .populate('brands', 'name logo')
+            .populate('categories', 'name slug image')
+            .sort({ createdAt: -1, _id: 1 })
+            .limit(Number(limit))
+            .skip((Number(page) - 1) * Number(limit));
+
+        const total = await Company.countDocuments(query);
+
+        res.json({
+            success: true,
+            data: companies,
+            pagination: {
+                page: parseInt(page),
+                limit: parseInt(limit),
+                total,
+                pages: Math.ceil(total / Number(limit))
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get single company (dashboard)
+// @route   GET /api/dashboard/companies/:id
+// @access  Private (viewCompanies permission)
+export const getDashboardCompany = async (req, res) => {
+    try {
+        const company = await Company.findById(req.params.id)
+            .populate('brands', 'name logo description')
+            .populate('categories', 'name slug image');
+
+        if (!company) {
+            return res.status(404).json({ success: false, message: 'الشركة غير موجودة' });
+        }
+
+        res.json({ success: true, data: company });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Create new company (dashboard)
+// @route   POST /api/dashboard/companies
+// @access  Private (manageCompanies permission)
+export const createDashboardCompany = async (req, res) => {
+    try {
+        const { name, slug, description, brands, categories, isActive } = req.body;
+        let logo = req.body.logo || null;
+
+        if (req.file) {
+            try {
+                logo = await processCompanyLogo(req.file);
+            } catch (error) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to process company logo'
+                });
+            }
+        }
+
+        const existingCompany = await Company.findOne({ name });
+        if (existingCompany) {
+            return res.status(400).json({ success: false, message: 'اسم الشركة موجود بالفعل' });
+        }
+
+        let parsedBrands = [];
+        if (brands) {
+            if (Array.isArray(brands)) {
+                parsedBrands = brands;
+            } else if (typeof brands === 'string') {
+                try { parsedBrands = JSON.parse(brands); } catch { parsedBrands = [brands]; }
+            }
+        }
+
+        let parsedCategories = [];
+        if (categories) {
+            if (Array.isArray(categories)) {
+                parsedCategories = categories;
+            } else if (typeof categories === 'string') {
+                try { parsedCategories = JSON.parse(categories); } catch { parsedCategories = [categories]; }
+            }
+        }
+
+        const company = await Company.create({
+            name,
+            slug: slug || name.trim().replace(/\s+/g, '-'),
+            description,
+            brands: parsedBrands,
+            categories: parsedCategories,
+            logo,
+            isActive: isActive !== undefined ? isActive : true
+        });
+
+        // Update brands to reference this company
+        if (parsedBrands.length > 0) {
+            await Brand.updateMany(
+                { _id: { $in: parsedBrands } },
+                { $set: { company: company._id } }
+            );
+        }
+
+        const populatedCompany = await Company.findById(company._id)
+            .populate('brands', 'name logo')
+            .populate('categories', 'name slug image');
+
+        res.status(201).json({ success: true, data: populatedCompany });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Update company (dashboard)
+// @route   PUT /api/dashboard/companies/:id
+// @access  Private (manageCompanies permission)
+export const updateDashboardCompany = async (req, res) => {
+    try {
+        const { name, slug, description, brands, categories, isActive } = req.body;
+
+        const company = await Company.findById(req.params.id);
+        if (!company) {
+            return res.status(404).json({ success: false, message: 'الشركة غير موجودة' });
+        }
+
+        if (slug && slug !== company.slug) {
+            const existing = await Company.findOne({ slug });
+            if (existing) {
+                return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+            }
+        }
+
+        if (req.file) {
+            try {
+                if (company.logo) {
+                    await deleteFile(company.logo);
+                }
+                company.logo = await processCompanyLogo(req.file);
+            } catch (error) {
+                return res.status(500).json({
+                    success: false,
+                    message: 'Failed to process company logo'
+                });
+            }
+        }
+
+        if (name) company.name = name;
+        if (slug) company.slug = slug;
+        if (description !== undefined) company.description = description;
+        if (isActive !== undefined) company.isActive = isActive;
+
+        if (brands !== undefined) {
+            let parsedBrands = [];
+            if (Array.isArray(brands)) {
+                parsedBrands = brands;
+            } else if (typeof brands === 'string') {
+                try { parsedBrands = JSON.parse(brands); } catch { parsedBrands = [brands]; }
+            }
+            company.brands = parsedBrands;
+
+            // Remove company ref from brands not in parsedBrands
+            await Brand.updateMany(
+                { company: company._id, _id: { $nin: parsedBrands } },
+                { $set: { company: null } }
+            );
+            // Add company ref to brands in parsedBrands
+            if (parsedBrands.length > 0) {
+                await Brand.updateMany(
+                    { _id: { $in: parsedBrands } },
+                    { $set: { company: company._id } }
+                );
+            }
+        }
+
+        if (categories !== undefined) {
+            let parsedCategories = [];
+            if (Array.isArray(categories)) {
+                parsedCategories = categories;
+            } else if (typeof categories === 'string') {
+                try { parsedCategories = JSON.parse(categories); } catch { parsedCategories = [categories]; }
+            }
+            company.categories = parsedCategories;
+        }
+
+        await company.save();
+
+        const populatedCompany = await Company.findById(company._id)
+            .populate('brands', 'name logo')
+            .populate('categories', 'name slug image');
+
+        res.json({ success: true, data: populatedCompany });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Delete company (dashboard)
+// @route   DELETE /api/dashboard/companies/:id
+// @access  Private (manageCompanies permission)
+export const deleteDashboardCompany = async (req, res) => {
+    try {
+        const company = await Company.findById(req.params.id);
+        if (!company) {
+            return res.status(404).json({ success: false, message: 'الشركة غير موجودة' });
+        }
+
+        // Unlink brands and products
+        await Brand.updateMany({ company: company._id }, { $set: { company: null } });
+        await Product.updateMany({ company: company._id }, { $set: { company: null } });
+
+        await Company.findByIdAndDelete(req.params.id);
+
+        res.json({ success: true, message: 'تم حذف الشركة بنجاح' });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // ==================== SETTINGS MANAGEMENT ====================

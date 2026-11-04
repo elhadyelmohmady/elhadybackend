@@ -67,6 +67,11 @@ router.post('/sync/products', authSync, validate(productSyncSchema), syncProduct
  *           type: string
  *         description: Brand ID filter
  *       - in: query
+ *         name: company
+ *         schema:
+ *           type: string
+ *         description: Company ID filter
+ *       - in: query
  *         name: sort
  *         schema:
  *           type: string

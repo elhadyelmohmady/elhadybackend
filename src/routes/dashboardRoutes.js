@@ -34,6 +34,11 @@ import {
     createBrand,
     updateBrand,
     deleteBrand,
+    getDashboardCompanies,
+    getDashboardCompany,
+    createDashboardCompany,
+    updateDashboardCompany,
+    deleteDashboardCompany,
     getCoupons,
     getCoupon,
     createCoupon,
@@ -45,7 +50,7 @@ import {
     updateSettings
 } from '../controllers/dashboardController.js';
 import { authenticateDashboard, requirePermission, requireRole } from '../middleware/dashboardAuth.js';
-import { productUpload, brandUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
+import { productUpload, brandUpload, companyUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
 
 import accountRoutes from './accountRoutes.js';
 import { getFinancialOverview } from '../controllers/accountController.js';
@@ -121,6 +126,13 @@ router.get('/brands/:id', requirePermission('viewBrands'), getBrand);
 router.post('/brands', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, createBrand);
 router.put('/brands/:id', requirePermission('manageBrands'), brandUpload.single('logo'), handleUploadError, updateBrand);
 router.delete('/brands/:id', requirePermission('manageBrands'), deleteBrand);
+
+// ==================== COMPANY MANAGEMENT ====================
+router.get('/companies', requirePermission('viewCompanies'), getDashboardCompanies);
+router.get('/companies/:id', requirePermission('viewCompanies'), getDashboardCompany);
+router.post('/companies', requirePermission('manageCompanies'), companyUpload.single('logo'), handleUploadError, createDashboardCompany);
+router.put('/companies/:id', requirePermission('manageCompanies'), companyUpload.single('logo'), handleUploadError, updateDashboardCompany);
+router.delete('/companies/:id', requirePermission('manageCompanies'), deleteDashboardCompany);
 
 // ==================== COUPON MANAGEMENT ====================
 router.get('/coupons', requirePermission('viewCoupons'), getCoupons);

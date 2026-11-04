@@ -33,6 +33,7 @@ export const productQuerySchema = z.object({
         q: z.string().optional(),
         category: z.string().optional(),
         brand: z.string().optional(),
+        company: z.string().optional(),
         sort: z.enum(['price_asc', 'price_desc', 'most_ordered', 'name_asc', 'name_desc']).optional(),
         onSale: z.enum(['true', 'false']).optional(),
         page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),

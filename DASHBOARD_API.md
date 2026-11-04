@@ -280,7 +280,29 @@ curl -X PUT http://localhost:3000/api/dashboard/brands/brand_id \
 
 ---
 
-### 6. **Coupons Management** 🎟️
+### 6. **Companies Management** 🏢
+| Method | Endpoint | Permission | الوصف |
+|--------|----------|------------|-------|
+| GET | `/api/dashboard/companies?page=1&limit=50&search=&category=&brand=` | `viewCompanies` | قائمة الشركات (مقسمة وفلاتر) |
+| GET | `/api/dashboard/companies/:id` | `viewCompanies` | تفاصيل شركة واحدة مع برانداتها وتصنيفاتها |
+| POST | `/api/dashboard/companies` | `manageCompanies` | إضافة شركة جديدة وربطها بالبراندات والتصنيفات |
+| PUT | `/api/dashboard/companies/:id` | `manageCompanies` | تعديل بيانات الشركة والبراندات التابعة |
+| DELETE | `/api/dashboard/companies/:id` | `manageCompanies` | حذف شركة وفك ارتباطها عن البراندات والمنتجات |
+
+#### Create Company
+**Content-Type:** `multipart/form-data`
+
+**Form Data Fields:**
+- `name` (text, required): اسم الشركة (مثال: يونيليفر)
+- `slug` (text, optional): الرابط الفريد (slug)
+- `description` (text, optional): وصف الشركة
+- `brands` (text/array, optional): مصفوفة معرفات العلامات التجارية التابعة (Brand IDs)
+- `categories` (text/array, optional): مصفوفة معرفات التصنيفات التابعة (Category IDs)
+- `logo` (file, optional): شعار الشركة
+
+---
+
+### 7. **Coupons Management** 🎟️
 | Method | Endpoint | Permission | الوصف |
 |--------|----------|------------|-------|
 | GET | `/api/dashboard/coupons?page=1&limit=20&search=&status=&isActive=` | `viewCoupons` | قائمة الكوبونات (مقسمة وفلاتر) |

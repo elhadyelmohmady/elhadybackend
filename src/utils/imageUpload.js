@@ -161,3 +161,26 @@ export const processBrandLogo = async (file) => {
         throw new Error('Failed to process brand logo');
     }
 };
+
+/**
+ * Process company logo upload
+ * @param {Express.Multer.File} file - Uploaded file object
+ * @returns {Promise<string>} Relative path to processed logo
+ */
+export const processCompanyLogo = async (file) => {
+    if (!file) return null;
+
+    try {
+        const optimizedPath = await optimizeImage(file.path, {
+            maxWidth: 500,
+            maxHeight: 500,
+            quality: 85,
+            format: 'webp'
+        });
+
+        return getRelativePath(optimizedPath);
+    } catch (error) {
+        console.error('Error processing company logo:', error);
+        throw new Error('Failed to process company logo');
+    }
+};

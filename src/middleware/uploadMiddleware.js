@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const assetsDir = path.join(__dirname, '..', 'assets');
 const productUploadDir = path.join(assetsDir, 'product_images');
 const brandUploadDir = path.join(assetsDir, 'brand_logos');
+const companyUploadDir = path.join(assetsDir, 'company_logos');
 
 // Ensure upload directories exist
 if (!fs.existsSync(productUploadDir)) {
@@ -20,6 +21,10 @@ if (!fs.existsSync(productUploadDir)) {
 
 if (!fs.existsSync(brandUploadDir)) {
     fs.mkdirSync(brandUploadDir, { recursive: true });
+}
+
+if (!fs.existsSync(companyUploadDir)) {
+    fs.mkdirSync(companyUploadDir, { recursive: true });
 }
 
 // Storage configuration for product images
@@ -43,6 +48,18 @@ const brandStorage = multer.diskStorage({
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname);
         cb(null, `brand-${uniqueSuffix}${ext}`);
+    }
+});
+
+// Storage configuration for company logos
+const companyStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, companyUploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `company-${uniqueSuffix}${ext}`);
     }
 });
 
@@ -71,6 +88,15 @@ export const productUpload = multer({
 // Multer configuration for brands
 export const brandUpload = multer({
     storage: brandStorage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: fileFilter
+});
+
+// Multer configuration for companies
+export const companyUpload = multer({
+    storage: companyStorage,
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB limit
     },

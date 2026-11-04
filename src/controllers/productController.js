@@ -6,7 +6,7 @@ import Product from '../models/Product.js';
  */
 export const getProducts = async (req, res) => {
     try {
-        const { q, category, brand, sort, onSale, page = 1, limit = 10 } = req.query;
+        const { q, category, brand, company, sort, onSale, page = 1, limit = 10 } = req.query;
 
         const query = {};
 
@@ -24,6 +24,10 @@ export const getProducts = async (req, res) => {
 
         if (brand) {
             query.brand = brand;
+        }
+
+        if (company) {
+            query.company = company;
         }
 
         if (onSale === 'true') {
@@ -48,6 +52,7 @@ export const getProducts = async (req, res) => {
                 .collation({ locale: 'ar' })
                 .populate('categories', 'name slug image')
                 .populate('brand', 'name logo')
+                .populate('company', 'name logo')
                 .skip(skip)
                 .limit(Number(limit))
                 .sort(sortBy),
@@ -78,7 +83,8 @@ export const getProductById = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
             .populate('categories', 'name slug image')
-            .populate('brand', 'name logo');
+            .populate('brand', 'name logo')
+            .populate('company', 'name logo');
 
         if (!product) {
             return res.status(404).json({ success: false, message: 'Product not found' });

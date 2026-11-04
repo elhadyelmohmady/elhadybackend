@@ -24,6 +24,11 @@ const productSchema = new mongoose.Schema({
         ref: 'Brand',
         default: null
     },
+    company: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Company',
+        default: null
+    },
     image: {
         type: String,
         default: null
@@ -57,6 +62,7 @@ const productSchema = new mongoose.Schema({
 
 productSchema.index({ name: 'text', keywords: 'text' });
 productSchema.index({ brand: 1 });
+productSchema.index({ company: 1 });
 productSchema.index({ categories: 1 });
 
 // True when the product has a valid "before" price higher than its current price

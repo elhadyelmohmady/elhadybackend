@@ -8,6 +8,7 @@ import User from '../models/User.js';
 import Order from '../models/Order.js';
 import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
+import Company from '../models/Company.js';
 import Coupon from '../models/Coupon.js';
 import Setting from '../models/Setting.js';
 
@@ -31,6 +32,7 @@ const adminOptions = {
                     stock: { label: 'الكمية المتوفرة' },
                     categories: { label: 'التصنيفات' },
                     brand: { label: 'العلامة التجارية' },
+                    company: { label: 'الشركة' },
                     minOrderQty: { label: 'الحد الأدنى للطلب' },
                     maxOrderQty: { label: 'الحد الأقصى للطلب' },
                     local_id: { label: 'المعرف المحلي' },
@@ -72,9 +74,31 @@ const adminOptions = {
                     logo: { label: 'الشعار (Logo)' },
                     description: { label: 'الوصف' },
                     categories: { label: 'التصنيفات' },
+                    company: { label: 'الشركة الأم' },
                     _id: { label: 'المعرف' },
                     createdAt: { label: 'تاريخ الإضافة' },
                 }
+            }
+        },
+        {
+            resource: Company,
+            options: {
+                label: 'الشركات',
+                navigation: { name: 'المتجر', icon: 'Home' },
+                properties: {
+                    name: { label: 'اسم الشركة' },
+                    slug: { label: 'الرابط المخصص (Slug)' },
+                    logo: { label: 'شعار الشركة' },
+                    description: { label: 'الوصف' },
+                    brands: { label: 'العلامات التجارية التابعة' },
+                    categories: { label: 'التصنيفات التابعة' },
+                    isActive: { label: 'نشط' },
+                    _id: { label: 'المعرف' },
+                    createdAt: { label: 'تاريخ الإضافة' },
+                    updatedAt: { label: 'تاريخ التحديث' },
+                },
+                listProperties: ['name', 'logo', 'brands', 'categories', 'isActive'],
+                showProperties: ['name', 'slug', 'logo', 'description', 'brands', 'categories', 'isActive', 'createdAt', 'updatedAt']
             }
         },
         {
