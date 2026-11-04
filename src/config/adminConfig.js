@@ -57,6 +57,8 @@ const adminOptions = {
                 properties: {
                     name: { label: 'اسم التصنيف' },
                     slug: { label: 'الرابط المخصص (Slug)' },
+                    description: { label: 'الوصف' },
+                    parentCategory: { label: 'التصنيف الرئيسي (الأب)' },
                     image: { label: 'صورة القسم' },
                     isActive: { label: 'نشط' },
                     _id: { label: 'المعرف' },

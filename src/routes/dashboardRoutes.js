@@ -25,6 +25,7 @@ import {
     getRevenueStats,
     getCategories,
     getCategory,
+    getCategorySubcategories,
     createCategory,
     updateCategory,
     deleteCategory,
@@ -116,6 +117,7 @@ router.delete('/products/:id', requirePermission('manageProducts'), deleteProduc
 router.get('/categories', requirePermission('viewCategories'), getCategories);
 router.get('/categories/:id', requirePermission('viewCategories'), getCategory);
 router.get('/categories/:id/brands', requirePermission('viewCategories'), getCategoryBrands);
+router.get('/categories/:id/subcategories', requirePermission('viewCategories'), getCategorySubcategories);
 router.post('/categories', requirePermission('manageCategories'), createCategory);
 router.put('/categories/:id', requirePermission('manageCategories'), updateCategory);
 router.delete('/categories/:id', requirePermission('manageCategories'), deleteCategory);

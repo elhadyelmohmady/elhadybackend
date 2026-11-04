@@ -824,7 +824,7 @@ export const getRevenueStats = async (req, res) => {
 // @route   GET /api/dashboard/categories
 // @access  Private (viewCategories permission)
 export const getCategories = async (req, res) => {
-    const { page = 1, limit = 50, search, isActive } = req.query;
+    const { page = 1, limit = 50, search, isActive, parentCategory, onlyParents } = req.query;
     const query = {};
 
     if (search) {
@@ -835,7 +835,15 @@ export const getCategories = async (req, res) => {
         query.isActive = isActive === 'true';
     }
 
+    if (parentCategory !== undefined) {
+        query.parentCategory = parentCategory === 'null' || parentCategory === '' ? null : parentCategory;
+    } else if (onlyParents === 'true') {
+        query.parentCategory = null;
+    }
+
     const categories = await Category.find(query)
+        .populate('parentCategory', 'name slug image')
+        .populate('subcategories', 'name slug image isActive')
         .sort({ createdAt: -1, _id: 1 })
         .limit(limit * 1)
         .skip((page - 1) * limit);
@@ -858,65 +866,136 @@ export const getCategories = async (req, res) => {
 // @route   GET /api/dashboard/categories/:id
 // @access  Private (viewCategories permission)
 export const getCategory = async (req, res) => {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findById(req.params.id)
+        .populate('parentCategory', 'name slug image')
+        .populate('subcategories', 'name slug image isActive');
     if (!category) {
         return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
     }
 
     res.json({ success: true, data: category });
+};
+
+// @desc    Get subcategories of a category
+// @route   GET /api/dashboard/categories/:id/subcategories
+// @access  Private (viewCategories permission)
+export const getCategorySubcategories = async (req, res) => {
+    try {
+        const category = await Category.findById(req.params.id);
+        if (!category) {
+            return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
+        }
+
+        const subcategories = await Category.find({ parentCategory: req.params.id })
+            .populate('parentCategory', 'name slug image')
+            .sort({ name: 1 });
+
+        res.json({
+            success: true,
+            parentCategory: { _id: category._id, name: category.name, slug: category.slug },
+            count: subcategories.length,
+            data: subcategories
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // @desc    Create new category
 // @route   POST /api/dashboard/categories
 // @access  Private (manageCategories permission)
 export const createCategory = async (req, res) => {
-    const { name, slug, description, image, parentCategory, isActive } = req.body;
+    try {
+        const { name, slug, description, image, parentCategory, isActive } = req.body;
 
-    const existingCategory = await Category.findOne({ slug });
-    if (existingCategory) {
-        return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+        const generatedSlug = slug && slug.trim() !== '' 
+            ? slug.trim().replace(/\s+/g, '-') 
+            : name.trim().replace(/\s+/g, '-');
+
+        const existingCategory = await Category.findOne({
+            $or: [{ slug: generatedSlug }, { name: name.trim() }]
+        });
+        if (existingCategory) {
+            return res.status(400).json({ success: false, message: 'التصنيف أو الرابط موجود بالفعل' });
+        }
+
+        const cleanParent = parentCategory && parentCategory !== '' && parentCategory !== 'null' && parentCategory !== 'undefined'
+            ? parentCategory
+            : null;
+
+        const category = await Category.create({
+            name: name.trim(),
+            slug: generatedSlug,
+            description: description && description.trim() !== '' ? description.trim() : null,
+            image: image || null,
+            parentCategory: cleanParent,
+            isActive: isActive !== undefined ? isActive : true
+        });
+
+        const populatedCategory = await Category.findById(category._id)
+            .populate('parentCategory', 'name slug image')
+            .populate('subcategories', 'name slug image isActive');
+
+        res.status(201).json({ success: true, data: populatedCategory });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    const category = await Category.create({
-        name,
-        slug,
-        description,
-        image,
-        parentCategory,
-        isActive: isActive !== undefined ? isActive : true
-    });
-
-    res.status(201).json({ success: true, data: category });
 };
 
 // @desc    Update category
 // @route   PUT /api/dashboard/categories/:id
 // @access  Private (manageCategories permission)
 export const updateCategory = async (req, res) => {
-    const { name, slug, description, image, parentCategory, isActive } = req.body;
+    try {
+        const { name, slug, description, image, parentCategory, isActive } = req.body;
 
-    const category = await Category.findById(req.params.id);
-    if (!category) {
-        return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
-    }
-
-    // Check for duplicate slug
-    if (slug && slug !== category.slug) {
-        const existing = await Category.findOne({ slug });
-        if (existing) {
-            return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+        const category = await Category.findById(req.params.id);
+        if (!category) {
+            return res.status(404).json({ success: false, message: 'التصنيف غير موجود' });
         }
+
+        // Check for duplicate slug
+        if (slug && slug.trim() !== '' && slug !== category.slug) {
+            const cleanSlug = slug.trim().replace(/\s+/g, '-');
+            const existing = await Category.findOne({ slug: cleanSlug, _id: { $ne: category._id } });
+            if (existing) {
+                return res.status(400).json({ success: false, message: 'الرابط موجود بالفعل' });
+            }
+            category.slug = cleanSlug;
+        }
+
+        if (name && name.trim() !== '') {
+            category.name = name.trim();
+        }
+
+        if (description !== undefined) {
+            category.description = description && description.trim() !== '' ? description.trim() : null;
+        }
+
+        if (image !== undefined) {
+            category.image = image || null;
+        }
+
+        if (parentCategory !== undefined) {
+            category.parentCategory = parentCategory && parentCategory !== '' && parentCategory !== 'null' && parentCategory !== 'undefined'
+                ? parentCategory
+                : null;
+        }
+
+        if (isActive !== undefined) {
+            category.isActive = isActive;
+        }
+
+        await category.save();
+
+        const populatedCategory = await Category.findById(category._id)
+            .populate('parentCategory', 'name slug image')
+            .populate('subcategories', 'name slug image isActive');
+
+        res.json({ success: true, data: populatedCategory });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
-
-    if (name) category.name = name;
-    if (slug) category.slug = slug;
-    if (description) category.description = description;
-    if (image !== undefined) category.image = image;
-    if (parentCategory !== undefined) category.parentCategory = parentCategory;
-    if (isActive !== undefined) category.isActive = isActive;
-
-    await category.save();
-    res.json({ success: true, data: category });
 };
 
 // @desc    Delete category
