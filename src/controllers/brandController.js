@@ -21,7 +21,8 @@ export const getBrands = async (req, res) => {
             const productBrandIds = await Product.find({
                 categories: { $in: allCategoryIds },
                 brand: { $ne: null },
-                deleteFlag: { $ne: 1 }
+                deleteFlag: { $ne: 1 },
+                stock: { $gt: 0 }
             }).distinct('brand');
             filter.$or = [
                 { categories: { $in: allCategoryIds } },
@@ -54,7 +55,10 @@ export const getBrandProducts = async (req, res) => {
             return res.status(404).json({ success: false, message: 'Brand not found' });
         }
 
-        const query = { brand: req.params.id };
+        const query = {
+            brand: req.params.id,
+            stock: { $gt: 0 }
+        };
 
         const [products, total] = await Promise.all([
             Product.find(query)

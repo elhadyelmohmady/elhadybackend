@@ -9,7 +9,7 @@ import Coupon from '../models/Coupon.js';
 import Setting from '../models/Setting.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { processProductImage, processBrandLogo, processCompanyLogo, deleteFile } from '../utils/imageUpload.js';
+import { processProductImage, processCategoryImage, processBrandLogo, processCompanyLogo, deleteFile } from '../utils/imageUpload.js';
 import { notifyOrderStatusChanged, notifyNewUser } from '../services/notificationService.js';
 import { recordTransaction } from '../services/accountService.js';
 
@@ -929,13 +929,18 @@ export const createCategory = async (req, res) => {
             ? parentCategory
             : null;
 
+        let imagePath = image || null;
+        if (req.file) {
+            imagePath = await processCategoryImage(req.file);
+        }
+
         const category = await Category.create({
             name: name.trim(),
             slug: generatedSlug,
             description: description && description.trim() !== '' ? description.trim() : null,
-            image: image || null,
+            image: imagePath,
             parentCategory: cleanParent,
-            isActive: isActive !== undefined ? isActive : true
+            isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true
         });
 
         const populatedCategory = await Category.findById(category._id)
@@ -978,7 +983,12 @@ export const updateCategory = async (req, res) => {
             category.description = description && description.trim() !== '' ? description.trim() : null;
         }
 
-        if (image !== undefined) {
+        if (req.file) {
+            if (category.image) {
+                await deleteFile(category.image);
+            }
+            category.image = await processCategoryImage(req.file);
+        } else if (image !== undefined) {
             category.image = image || null;
         }
 

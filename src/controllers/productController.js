@@ -8,7 +8,7 @@ export const getProducts = async (req, res) => {
     try {
         const { q, category, brand, company, sort, onSale, page = 1, limit = 10 } = req.query;
 
-        const query = {};
+        const query = { stock: { $gt: 0 } };
 
         if (q) {
             query.$or = [
@@ -81,7 +81,7 @@ export const getProducts = async (req, res) => {
  */
 export const getProductById = async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
+        const product = await Product.findOne({ _id: req.params.id, stock: { $gt: 0 } })
             .populate('categories', 'name slug image')
             .populate('brand', 'name logo')
             .populate('company', 'name logo');

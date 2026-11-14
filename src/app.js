@@ -46,6 +46,7 @@ const staticCorsHeaders = (res) => {
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 };
 app.use('/product_images', express.static(path.join(__dirname, 'assets/product_images'), { setHeaders: staticCorsHeaders }));
+app.use('/category_images', express.static(path.join(__dirname, 'assets/category_images'), { setHeaders: staticCorsHeaders }));
 app.use('/brand_logos', express.static(path.join(__dirname, 'assets/brand_logos'), { setHeaders: staticCorsHeaders }));
 app.use('/brand_images', express.static(path.join(__dirname, 'assets/brand_images'), { setHeaders: staticCorsHeaders }));
 app.use('/company_logos', express.static(path.join(__dirname, 'assets/company_logos'), { setHeaders: staticCorsHeaders }));

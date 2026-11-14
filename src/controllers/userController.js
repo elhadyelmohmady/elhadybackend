@@ -168,15 +168,17 @@ export const getFavorites = async (req, res) => {
     try {
         const user = await User.findById(req.user._id).populate({
             path: 'favorites',
-            select: 'name image price stock minOrderQty maxOrderQty brand category',
-            populate: [{ path: 'brand', select: 'name' }, { path: 'category', select: 'name' }]
+            match: { stock: { $gt: 0 } },
+            select: 'name image price stock minOrderQty maxOrderQty brand categories',
+            populate: [{ path: 'brand', select: 'name' }, { path: 'categories', select: 'name' }]
         });
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        res.json({ data: user.favorites });
+        const favorites = (user.favorites || []).filter(Boolean);
+        res.json({ data: favorites });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error while fetching favorites' });

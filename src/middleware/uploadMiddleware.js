@@ -11,12 +11,17 @@ const __dirname = path.dirname(__filename);
 // Go up one level from src/middleware to src, then to assets
 const assetsDir = path.join(__dirname, '..', 'assets');
 const productUploadDir = path.join(assetsDir, 'product_images');
+const categoryUploadDir = path.join(assetsDir, 'category_images');
 const brandUploadDir = path.join(assetsDir, 'brand_logos');
 const companyUploadDir = path.join(assetsDir, 'company_logos');
 
 // Ensure upload directories exist
 if (!fs.existsSync(productUploadDir)) {
     fs.mkdirSync(productUploadDir, { recursive: true });
+}
+
+if (!fs.existsSync(categoryUploadDir)) {
+    fs.mkdirSync(categoryUploadDir, { recursive: true });
 }
 
 if (!fs.existsSync(brandUploadDir)) {
@@ -36,6 +41,18 @@ const productStorage = multer.diskStorage({
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname);
         cb(null, `product-${uniqueSuffix}${ext}`);
+    }
+});
+
+// Storage configuration for category images
+const categoryStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, categoryUploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `category-${uniqueSuffix}${ext}`);
     }
 });
 
@@ -79,6 +96,15 @@ const fileFilter = (req, file, cb) => {
 // Multer configuration for products
 export const productUpload = multer({
     storage: productStorage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: fileFilter
+});
+
+// Multer configuration for categories
+export const categoryUpload = multer({
+    storage: categoryStorage,
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB limit
     },

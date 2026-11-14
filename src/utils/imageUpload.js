@@ -184,3 +184,26 @@ export const processCompanyLogo = async (file) => {
         throw new Error('Failed to process company logo');
     }
 };
+
+/**
+ * Process category image upload
+ * @param {Express.Multer.File} file - Uploaded file object
+ * @returns {Promise<string>} Relative path to processed image
+ */
+export const processCategoryImage = async (file) => {
+    if (!file) return null;
+
+    try {
+        const optimizedPath = await optimizeImage(file.path, {
+            maxWidth: 600,
+            maxHeight: 600,
+            quality: 85,
+            format: 'webp'
+        });
+
+        return getRelativePath(optimizedPath);
+    } catch (error) {
+        console.error('Error processing category image:', error);
+        throw new Error('Failed to process category image');
+    }
+};

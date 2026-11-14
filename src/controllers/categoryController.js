@@ -50,7 +50,10 @@ export const getCategoryProducts = async (req, res) => {
         const subCategoryIds = await Category.find({ parentCategory: req.params.id }).distinct('_id');
         const allCategoryIds = [category._id, ...subCategoryIds];
 
-        const query = { categories: { $in: allCategoryIds } };
+        const query = {
+            categories: { $in: allCategoryIds },
+            stock: { $gt: 0 }
+        };
 
         const [products, total] = await Promise.all([
             Product.find(query)
@@ -123,7 +126,8 @@ export const getCategoryBrands = async (req, res) => {
         const productBrandIds = await Product.find({
             categories: { $in: allCategoryIds },
             brand: { $ne: null },
-            deleteFlag: { $ne: 1 }
+            deleteFlag: { $ne: 1 },
+            stock: { $gt: 0 }
         }).distinct('brand');
         const brands = await Brand.find({
             $or: [

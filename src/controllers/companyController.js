@@ -128,7 +128,8 @@ export const getCompanyProducts = async (req, res) => {
             $or: [
                 { company: company._id },
                 { brand: { $in: brandIds } }
-            ]
+            ],
+            stock: { $gt: 0 }
         };
 
         if (category) {

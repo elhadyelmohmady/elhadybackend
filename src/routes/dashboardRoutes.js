@@ -51,7 +51,7 @@ import {
     updateSettings
 } from '../controllers/dashboardController.js';
 import { authenticateDashboard, requirePermission, requireRole } from '../middleware/dashboardAuth.js';
-import { productUpload, brandUpload, companyUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
+import { productUpload, categoryUpload, brandUpload, companyUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
 
 import accountRoutes from './accountRoutes.js';
 import { getFinancialOverview } from '../controllers/accountController.js';
@@ -119,8 +119,8 @@ router.get('/categories', requirePermission('viewCategories'), getCategories);
 router.get('/categories/:id', requirePermission('viewCategories'), getCategory);
 router.get('/categories/:id/brands', requirePermission('viewCategories'), getCategoryBrands);
 router.get('/categories/:id/subcategories', requirePermission('viewCategories'), getCategorySubcategories);
-router.post('/categories', requirePermission('manageCategories'), createCategory);
-router.put('/categories/:id', requirePermission('manageCategories'), updateCategory);
+router.post('/categories', requirePermission('manageCategories'), categoryUpload.single('image'), handleUploadError, createCategory);
+router.put('/categories/:id', requirePermission('manageCategories'), categoryUpload.single('image'), handleUploadError, updateCategory);
 router.delete('/categories/:id', requirePermission('manageCategories'), deleteCategory);
 
 // ==================== BRAND MANAGEMENT ====================
