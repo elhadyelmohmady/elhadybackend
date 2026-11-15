@@ -47,6 +47,10 @@ import {
     deleteCoupon,
     toggleCouponStatus,
     getCouponUsages,
+    toggleBestPrice,
+    getOffersSummary,
+    applyBulkDiscount,
+    removeBulkDiscount,
     getSettings,
     updateSettings
 } from '../controllers/dashboardController.js';
@@ -112,7 +116,13 @@ router.get('/products', requirePermission('viewProducts'), getProducts);
 router.get('/products/:id', requirePermission('viewProducts'), getProduct);
 router.post('/products', requirePermission('manageProducts'), productUpload.single('image'), handleUploadError, createProduct);
 router.put('/products/:id', requirePermission('manageProducts'), productUpload.single('image'), handleUploadError, updateProduct);
+router.patch('/products/:id/toggle-best-price', requirePermission('manageProducts'), toggleBestPrice);
 router.delete('/products/:id', requirePermission('manageProducts'), deleteProduct);
+
+// ==================== OFFERS & DISCOUNTS ====================
+router.get('/offers', requirePermission('viewProducts'), getOffersSummary);
+router.post('/offers/bulk-discount', requirePermission('manageProducts'), applyBulkDiscount);
+router.post('/offers/remove-bulk-discount', requirePermission('manageProducts'), removeBulkDiscount);
 
 // ==================== CATEGORY MANAGEMENT ====================
 router.get('/categories', requirePermission('viewCategories'), getCategories);

@@ -86,10 +86,18 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ message: 'خطأ في الكميات', errors });
     }
 
-    // Build order items with server-side prices and calculate subtotal
+    // Build order items with server-side prices (supporting quantity discount tiers) and calculate subtotal
     const orderItems = items.map(item => {
         const product = productMap.get(item.product);
-        return { product: product._id, quantity: item.quantity, price: product.price };
+        let itemPrice = product.price;
+        if (Array.isArray(product.quantityTiers) && product.quantityTiers.length > 0) {
+            const sortedTiers = [...product.quantityTiers].sort((a, b) => b.minQuantity - a.minQuantity);
+            const matchedTier = sortedTiers.find(t => item.quantity >= t.minQuantity);
+            if (matchedTier) {
+                itemPrice = matchedTier.price;
+            }
+        }
+        return { product: product._id, quantity: item.quantity, price: itemPrice };
     });
 
     const subtotal = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);

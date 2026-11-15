@@ -40,7 +40,12 @@ export const validateCoupon = async (req, res) => {
 
             validatedItems = items.map(item => {
                 const prod = productMap.get(item.product?.toString());
-                const price = prod ? prod.price : (item.price || 0);
+                let price = prod ? prod.price : (item.price || 0);
+                if (prod && Array.isArray(prod.quantityTiers) && prod.quantityTiers.length > 0) {
+                    const sortedTiers = [...prod.quantityTiers].sort((a, b) => b.minQuantity - a.minQuantity);
+                    const matchedTier = sortedTiers.find(t => item.quantity >= t.minQuantity);
+                    if (matchedTier) price = matchedTier.price;
+                }
                 return { product: item.product, quantity: item.quantity, price };
             });
             subtotal = validatedItems.reduce((sum, i) => sum + i.price * i.quantity, 0);

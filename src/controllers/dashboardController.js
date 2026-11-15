@@ -619,6 +619,19 @@ export const getProducts = async (req, res) => {
         query.stock = { $lt: 10 };
     }
 
+    if (req.query.onSale === 'true') {
+        query.originalPrice = { $ne: null };
+        query.$expr = { $gt: ['$originalPrice', '$price'] };
+    }
+
+    if (req.query.isBestPrice === 'true') {
+        query.isBestPrice = true;
+    }
+
+    if (req.query.hasQuantityOffers === 'true') {
+        query['quantityTiers.0'] = { $exists: true };
+    }
+
     const sortOptions = {
         name_asc: { name: 1, _id: 1 },
         name_desc: { name: -1, _id: 1 },
@@ -672,7 +685,7 @@ export const getProduct = async (req, res) => {
 // @access  Private (manageProducts permission)
 export const createProduct = async (req, res) => {
     try {
-        const { name, price, originalPrice, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
+        const { name, price, originalPrice, isBestPrice, quantityTiers, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
         let image = req.body.image || null;
 
         // Process uploaded image if present
@@ -687,11 +700,22 @@ export const createProduct = async (req, res) => {
             }
         }
 
+        let parsedQuantityTiers = [];
+        if (quantityTiers !== undefined && quantityTiers !== null && quantityTiers !== '') {
+            try {
+                parsedQuantityTiers = typeof quantityTiers === 'string' ? JSON.parse(quantityTiers) : quantityTiers;
+            } catch {
+                parsedQuantityTiers = [];
+            }
+        }
+
         const product = await Product.create({
             local_id: `dashboard_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
             name,
             price,
             originalPrice: originalPrice !== undefined && originalPrice !== '' ? originalPrice : null,
+            isBestPrice: isBestPrice === true || isBestPrice === 'true',
+            quantityTiers: Array.isArray(parsedQuantityTiers) ? parsedQuantityTiers : [],
             stock,
             brand,
             categories: categories ? (Array.isArray(categories) ? categories : [categories]) : [],
@@ -713,7 +737,7 @@ export const createProduct = async (req, res) => {
 // @access  Private (manageProducts permission)
 export const updateProduct = async (req, res) => {
     try {
-        const { name, price, originalPrice, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
+        const { name, price, originalPrice, isBestPrice, quantityTiers, stock, brand, categories, keywords, metadata, minOrderQty, maxOrderQty } = req.body;
 
         const product = await Product.findById(req.params.id);
         if (!product) {
@@ -743,6 +767,15 @@ export const updateProduct = async (req, res) => {
         if (name) product.name = name;
         if (price !== undefined) product.price = price;
         if (originalPrice !== undefined) product.originalPrice = originalPrice === '' ? null : originalPrice;
+        if (isBestPrice !== undefined) product.isBestPrice = isBestPrice === true || isBestPrice === 'true';
+        if (quantityTiers !== undefined) {
+            try {
+                const parsed = typeof quantityTiers === 'string' ? JSON.parse(quantityTiers) : quantityTiers;
+                product.quantityTiers = Array.isArray(parsed) ? parsed : [];
+            } catch {
+                product.quantityTiers = [];
+            }
+        }
         if (stock !== undefined) product.stock = stock;
         if (brand !== undefined) product.brand = brand;
         if (categories !== undefined) product.categories = Array.isArray(categories) ? categories : [categories];
@@ -1850,4 +1883,158 @@ export const getCouponUsages = async (req, res) => {
             users: coupon.usersUsed
         }
     });
+};
+
+// ==========================================
+// OFFERS & DEALS CONTROLLERS
+// ==========================================
+
+// @desc    Toggle product best price flag
+// @route   PATCH /api/dashboard/products/:id/toggle-best-price
+// @access  Private (manageProducts permission)
+export const toggleBestPrice = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({ success: false, message: 'المنتج غير موجود' });
+        }
+
+        product.isBestPrice = !product.isBestPrice;
+        await product.save();
+
+        res.json({
+            success: true,
+            message: product.isBestPrice ? 'تم تفعيل شارة أفضل سعر للمنتج' : 'تم إلغاء شارة أفضل سعر',
+            data: { _id: product._id, name: product.name, isBestPrice: product.isBestPrice }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Get offers and discounts summary
+// @route   GET /api/dashboard/offers
+// @access  Private (viewProducts permission)
+export const getOffersSummary = async (req, res) => {
+    try {
+        const [onSaleCount, quantityOffersCount, bestPriceCount, sampleOffers] = await Promise.all([
+            Product.countDocuments({
+                originalPrice: { $ne: null },
+                $expr: { $gt: ['$originalPrice', '$price'] }
+            }),
+            Product.countDocuments({ 'quantityTiers.0': { $exists: true } }),
+            Product.countDocuments({ isBestPrice: true }),
+            Product.find({
+                $or: [
+                    { originalPrice: { $ne: null }, $expr: { $gt: ['$originalPrice', '$price'] } },
+                    { 'quantityTiers.0': { $exists: true } },
+                    { isBestPrice: true }
+                ]
+            })
+                .populate('brand', 'name logo')
+                .populate('company', 'name logo')
+                .populate('categories', 'name')
+                .limit(50)
+                .sort({ updatedAt: -1 })
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                stats: {
+                    onSaleCount,
+                    quantityOffersCount,
+                    bestPriceCount,
+                    totalOffers: onSaleCount + quantityOffersCount + bestPriceCount
+                },
+                offers: sampleOffers
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Apply bulk discount percentage on brand or category
+// @route   POST /api/dashboard/offers/bulk-discount
+// @access  Private (manageProducts permission)
+export const applyBulkDiscount = async (req, res) => {
+    try {
+        const { categoryId, brandId, companyId, discountPercent } = req.body;
+
+        const percent = Number(discountPercent);
+        if (!percent || percent <= 0 || percent >= 100) {
+            return res.status(400).json({ success: false, message: 'نسبة الخصم يجب أن تكون بين 1% و 99%' });
+        }
+
+        const query = {};
+        if (categoryId) query.categories = categoryId;
+        if (brandId) query.brand = brandId;
+        if (companyId) query.company = companyId;
+
+        if (Object.keys(query).length === 0) {
+            return res.status(400).json({ success: false, message: 'يرجى تحديد تصنيف أو براند أو شركة لتطبيق الخصم' });
+        }
+
+        const products = await Product.find(query);
+        if (products.length === 0) {
+            return res.status(404).json({ success: false, message: 'لم يتم العثور على منتجات مطابقة للشروط' });
+        }
+
+        let updatedCount = 0;
+        for (const prod of products) {
+            // If already on sale, keep current originalPrice, otherwise set originalPrice = current price
+            const basePrice = prod.originalPrice && prod.originalPrice > prod.price ? prod.originalPrice : prod.price;
+            const newPrice = Math.round(basePrice * (1 - percent / 100));
+
+            prod.originalPrice = basePrice;
+            prod.price = Math.max(newPrice, 1);
+            await prod.save();
+            updatedCount++;
+        }
+
+        res.json({
+            success: true,
+            message: `تم تطبيق خصم ${percent}% بنجاح على ${updatedCount} منتج`,
+            count: updatedCount
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Remove bulk discount from brand or category
+// @route   POST /api/dashboard/offers/remove-bulk-discount
+// @access  Private (manageProducts permission)
+export const removeBulkDiscount = async (req, res) => {
+    try {
+        const { categoryId, brandId, companyId } = req.body;
+
+        const query = {
+            originalPrice: { $ne: null }
+        };
+        if (categoryId) query.categories = categoryId;
+        if (brandId) query.brand = brandId;
+        if (companyId) query.company = companyId;
+
+        const products = await Product.find(query);
+        let restoredCount = 0;
+
+        for (const prod of products) {
+            if (prod.originalPrice && prod.originalPrice > prod.price) {
+                prod.price = prod.originalPrice;
+                prod.originalPrice = null;
+                await prod.save();
+                restoredCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            message: `تم إلغاء الخصم واسترجاع الأسعار الأصلية لـ ${restoredCount} منتج`,
+            count: restoredCount
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };

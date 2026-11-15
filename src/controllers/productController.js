@@ -6,7 +6,7 @@ import Product from '../models/Product.js';
  */
 export const getProducts = async (req, res) => {
     try {
-        const { q, category, brand, company, sort, onSale, page = 1, limit = 10 } = req.query;
+        const { q, category, brand, company, sort, onSale, isBestPrice, hasQuantityOffers, page = 1, limit = 10 } = req.query;
 
         const query = { stock: { $gt: 0 } };
 
@@ -33,6 +33,14 @@ export const getProducts = async (req, res) => {
         if (onSale === 'true') {
             query.originalPrice = { $ne: null };
             query.$expr = { $gt: ['$originalPrice', '$price'] };
+        }
+
+        if (isBestPrice === 'true') {
+            query.isBestPrice = true;
+        }
+
+        if (hasQuantityOffers === 'true') {
+            query['quantityTiers.0'] = { $exists: true };
         }
 
         const sortOptions = {
