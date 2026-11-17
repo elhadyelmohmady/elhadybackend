@@ -1022,6 +1022,9 @@ export const updateCategory = async (req, res) => {
             }
             category.image = await processCategoryImage(req.file);
         } else if (image !== undefined) {
+            if (!image && category.image) {
+                await deleteFile(category.image);
+            }
             category.image = image || null;
         }
 
@@ -1032,7 +1035,7 @@ export const updateCategory = async (req, res) => {
         }
 
         if (isActive !== undefined) {
-            category.isActive = isActive;
+            category.isActive = isActive === 'true' || isActive === true;
         }
 
         await category.save();
