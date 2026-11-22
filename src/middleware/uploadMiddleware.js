@@ -14,6 +14,7 @@ const productUploadDir = path.join(assetsDir, 'product_images');
 const categoryUploadDir = path.join(assetsDir, 'category_images');
 const brandUploadDir = path.join(assetsDir, 'brand_logos');
 const companyUploadDir = path.join(assetsDir, 'company_logos');
+const adUploadDir = path.join(assetsDir, 'ad_images');
 
 // Ensure upload directories exist
 if (!fs.existsSync(productUploadDir)) {
@@ -31,6 +32,22 @@ if (!fs.existsSync(brandUploadDir)) {
 if (!fs.existsSync(companyUploadDir)) {
     fs.mkdirSync(companyUploadDir, { recursive: true });
 }
+
+if (!fs.existsSync(adUploadDir)) {
+    fs.mkdirSync(adUploadDir, { recursive: true });
+}
+
+// Storage configuration for ad banners/popup images
+const adStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, adUploadDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, `ad-${uniqueSuffix}${ext}`);
+    }
+});
 
 // Storage configuration for product images
 const productStorage = multer.diskStorage({
@@ -123,6 +140,15 @@ export const brandUpload = multer({
 // Multer configuration for companies
 export const companyUpload = multer({
     storage: companyStorage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: fileFilter
+});
+
+// Multer configuration for ads (slider banners + popup)
+export const adUpload = multer({
+    storage: adStorage,
     limits: {
         fileSize: 5 * 1024 * 1024 // 5MB limit
     },

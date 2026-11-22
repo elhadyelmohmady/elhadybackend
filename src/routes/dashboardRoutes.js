@@ -51,11 +51,17 @@ import {
     getOffersSummary,
     applyBulkDiscount,
     removeBulkDiscount,
+    getAds,
+    getAd,
+    createAd,
+    updateAd,
+    deleteAd,
+    toggleAdStatus,
     getSettings,
     updateSettings
 } from '../controllers/dashboardController.js';
 import { authenticateDashboard, requirePermission, requireRole } from '../middleware/dashboardAuth.js';
-import { productUpload, categoryUpload, brandUpload, companyUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
+import { productUpload, categoryUpload, brandUpload, companyUpload, adUpload, handleUploadError } from '../middleware/uploadMiddleware.js';
 
 import accountRoutes from './accountRoutes.js';
 import { getFinancialOverview } from '../controllers/accountController.js';
@@ -168,6 +174,14 @@ router.get('/notifications/telegram-config', getTelegramConfig);
 router.put('/notifications/telegram-config', updateTelegramConfig);
 router.post('/notifications/test-telegram', testTelegramConfig);
 router.post('/notifications/broadcast', requirePermission('sendNotifications'), sendBroadcastNotification);
+
+// ==================== ADS MANAGEMENT (slider banners + popup) ====================
+router.get('/ads', requirePermission('viewAds'), getAds);
+router.get('/ads/:id', requirePermission('viewAds'), getAd);
+router.post('/ads', requirePermission('manageAds'), adUpload.single('image'), handleUploadError, createAd);
+router.put('/ads/:id', requirePermission('manageAds'), adUpload.single('image'), handleUploadError, updateAd);
+router.patch('/ads/:id/toggle-status', requirePermission('manageAds'), toggleAdStatus);
+router.delete('/ads/:id', requirePermission('manageAds'), deleteAd);
 
 // ==================== SETTINGS MANAGEMENT ====================
 router.get('/settings', requirePermission('viewSettings'), getSettings);

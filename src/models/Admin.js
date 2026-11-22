@@ -40,6 +40,8 @@ const adminSchema = new mongoose.Schema({
         manageSettings: { type: Boolean, default: false },
         viewCoupons: { type: Boolean, default: true },
         manageCoupons: { type: Boolean, default: false },
+        viewAds: { type: Boolean, default: true },
+        manageAds: { type: Boolean, default: false },
         sendNotifications: { type: Boolean, default: false }
     }
 }, {
@@ -89,6 +91,8 @@ adminSchema.methods.syncSuperAdminPermissions = function () {
             manageSettings: true,
             viewCoupons: true,
             manageCoupons: true,
+            viewAds: true,
+            manageAds: true,
             sendNotifications: true
         };
     }

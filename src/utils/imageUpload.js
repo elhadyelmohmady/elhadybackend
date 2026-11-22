@@ -207,3 +207,27 @@ export const processCategoryImage = async (file) => {
         throw new Error('Failed to process category image');
     }
 };
+
+/**
+ * Process ad image upload (slider banner or popup)
+ * Kept large (1200px) since ads render full-width in the mobile app
+ * @param {Express.Multer.File} file - Uploaded file object
+ * @returns {Promise<string>} Relative path to processed image
+ */
+export const processAdImage = async (file) => {
+    if (!file) return null;
+
+    try {
+        const optimizedPath = await optimizeImage(file.path, {
+            maxWidth: 1200,
+            maxHeight: 1200,
+            quality: 85,
+            format: 'webp'
+        });
+
+        return getRelativePath(optimizedPath);
+    } catch (error) {
+        console.error('Error processing ad image:', error);
+        throw new Error('Failed to process ad image');
+    }
+};

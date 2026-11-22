@@ -18,6 +18,7 @@ import userRoutes from './routes/userRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import brandRoutes from './routes/brandRoutes.js';
 import companyRoutes from './routes/companyRoutes.js';
+import adRoutes from './routes/adRoutes.js';
 import couponRoutes from './routes/couponRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
@@ -50,6 +51,7 @@ app.use('/category_images', express.static(path.join(__dirname, 'assets/category
 app.use('/brand_logos', express.static(path.join(__dirname, 'assets/brand_logos'), { setHeaders: staticCorsHeaders }));
 app.use('/brand_images', express.static(path.join(__dirname, 'assets/brand_images'), { setHeaders: staticCorsHeaders }));
 app.use('/company_logos', express.static(path.join(__dirname, 'assets/company_logos'), { setHeaders: staticCorsHeaders }));
+app.use('/ad_images', express.static(path.join(__dirname, 'assets/ad_images'), { setHeaders: staticCorsHeaders }));
 
 // AdminJS Dashboard (authenticated)
 app.use(adminJS.options.rootPath, adminRouter);
@@ -65,6 +67,7 @@ app.use('/api', productRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/companies', companyRoutes);
+app.use('/api/ads', adRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/locations', locationRoutes);

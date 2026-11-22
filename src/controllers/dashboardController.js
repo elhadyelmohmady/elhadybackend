@@ -6,10 +6,11 @@ import Category from '../models/Category.js';
 import Brand from '../models/Brand.js';
 import Company from '../models/Company.js';
 import Coupon from '../models/Coupon.js';
+import Ad from '../models/Ad.js';
 import Setting from '../models/Setting.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { processProductImage, processCategoryImage, processBrandLogo, processCompanyLogo, deleteFile } from '../utils/imageUpload.js';
+import { processProductImage, processCategoryImage, processBrandLogo, processCompanyLogo, processAdImage, deleteFile } from '../utils/imageUpload.js';
 import { notifyOrderStatusChanged, notifyNewUser } from '../services/notificationService.js';
 import { recordTransaction } from '../services/accountService.js';
 
@@ -2040,4 +2041,209 @@ export const removeBulkDiscount = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
+};
+
+// ==================== ADS MANAGEMENT (slider banners + popup) ====================
+
+// Parses the mixed-type params field coming from multipart form (JSON string) or JSON body
+const parseAdParams = (params) => {
+    if (params === undefined || params === null || params === '') return {};
+    if (typeof params === 'object') return params;
+    try {
+        const parsed = JSON.parse(params);
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+        return {};
+    }
+};
+
+const parseOptionalDate = (value) => {
+    if (value === undefined) return undefined;          // field not sent — keep current
+    if (value === null || value === '') return null;    // field cleared
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date;
+};
+
+const parseOptionalString = (value) => {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    return String(value).trim() || null;
+};
+
+// @desc    Get all ads (both types) with filters
+// @route   GET /api/dashboard/ads
+// @access  Private (viewAds permission)
+export const getAds = async (req, res) => {
+    const { page = 1, limit = 50, search, type, isActive } = req.query;
+    const query = {};
+
+    if (search) {
+        query.$or = [
+            { title: { $regex: search, $options: 'i' } },
+            { advertiser: { $regex: search, $options: 'i' } }
+        ];
+    }
+
+    if (type === 'slider' || type === 'popup') {
+        query.type = type;
+    }
+
+    if (isActive !== undefined) {
+        query.isActive = isActive === 'true';
+    }
+
+    const ads = await Ad.find(query)
+        .sort({ type: 1, order: 1, createdAt: -1 })
+        .limit(limit * 1)
+        .skip((page - 1) * limit);
+
+    const total = await Ad.countDocuments(query);
+
+    res.json({
+        success: true,
+        data: ads,
+        pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total,
+            pages: Math.ceil(total / limit)
+        }
+    });
+};
+
+// @desc    Get single ad
+// @route   GET /api/dashboard/ads/:id
+// @access  Private (viewAds permission)
+export const getAd = async (req, res) => {
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) {
+        return res.status(404).json({ success: false, message: 'الإعلان غير موجود' });
+    }
+    res.json({ success: true, data: ad });
+};
+
+// @desc    Create new ad
+// @route   POST /api/dashboard/ads
+// @access  Private (manageAds permission)
+export const createAd = async (req, res) => {
+    try {
+        const {
+            title, subtitle, advertiser, type, image, ctaText,
+            screen, params, externalUrl, order, isActive,
+            startDate, endDate, popupFrequency
+        } = req.body;
+
+        let imagePath = parseOptionalString(image);
+        if (req.file) {
+            imagePath = await processAdImage(req.file);
+        }
+        if (!imagePath) {
+            return res.status(400).json({ success: false, message: 'صورة الإعلان مطلوبة' });
+        }
+
+        const adType = type === 'popup' ? 'popup' : 'slider';
+
+        const ad = await Ad.create({
+            title: title ? String(title).trim() : '',
+            subtitle: subtitle ? String(subtitle).trim() : '',
+            advertiser: advertiser ? String(advertiser).trim() : '',
+            type: adType,
+            image: imagePath,
+            ctaText: ctaText ? String(ctaText).trim() : '',
+            screen: parseOptionalString(screen),
+            params: parseAdParams(params),
+            externalUrl: parseOptionalString(externalUrl),
+            order: order !== undefined && order !== null && order !== '' ? Number(order) : 0,
+            isActive: isActive !== undefined ? (isActive === 'true' || isActive === true) : true,
+            startDate: parseOptionalDate(startDate) ?? null,
+            endDate: parseOptionalDate(endDate) ?? null,
+            popupFrequency: ['once', 'daily', 'every_launch'].includes(popupFrequency) ? popupFrequency : 'every_launch'
+        });
+
+        res.status(201).json({ success: true, data: ad });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Update ad
+// @route   PUT /api/dashboard/ads/:id
+// @access  Private (manageAds permission)
+export const updateAd = async (req, res) => {
+    try {
+        const {
+            title, subtitle, advertiser, type, image, ctaText,
+            screen, params, externalUrl, order, isActive,
+            startDate, endDate, popupFrequency
+        } = req.body;
+
+        const ad = await Ad.findById(req.params.id);
+        if (!ad) {
+            return res.status(404).json({ success: false, message: 'الإعلان غير موجود' });
+        }
+
+        if (title !== undefined) ad.title = title ? String(title).trim() : '';
+        if (subtitle !== undefined) ad.subtitle = subtitle ? String(subtitle).trim() : '';
+        if (advertiser !== undefined) ad.advertiser = advertiser ? String(advertiser).trim() : '';
+        if (type !== undefined) ad.type = type === 'popup' ? 'popup' : 'slider';
+        if (ctaText !== undefined) ad.ctaText = ctaText ? String(ctaText).trim() : '';
+        if (popupFrequency !== undefined && ['once', 'daily', 'every_launch'].includes(popupFrequency)) {
+            ad.popupFrequency = popupFrequency;
+        }
+
+        if (req.file) {
+            // Only delete the old file if it lives on our server (not an external URL)
+            if (ad.image && !/^https?:\/\//i.test(ad.image)) {
+                await deleteFile(ad.image);
+            }
+            ad.image = await processAdImage(req.file);
+        } else if (image !== undefined) {
+            const nextImage = parseOptionalString(image);
+            if (!nextImage && ad.image && !/^https?:\/\//i.test(ad.image)) {
+                await deleteFile(ad.image);
+            }
+            ad.image = nextImage || ad.image;
+        }
+
+        if (screen !== undefined) ad.screen = parseOptionalString(screen);
+        if (params !== undefined) ad.params = parseAdParams(params);
+        if (externalUrl !== undefined) ad.externalUrl = parseOptionalString(externalUrl);
+        if (order !== undefined && order !== null && order !== '') ad.order = Number(order);
+        if (isActive !== undefined) ad.isActive = isActive === 'true' || isActive === true;
+
+        const nextStart = parseOptionalDate(startDate);
+        if (nextStart !== undefined) ad.startDate = nextStart;
+        const nextEnd = parseOptionalDate(endDate);
+        if (nextEnd !== undefined) ad.endDate = nextEnd;
+
+        await ad.save();
+
+        res.json({ success: true, data: ad });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Delete ad (soft delete)
+// @route   DELETE /api/dashboard/ads/:id
+// @access  Private (manageAds permission)
+export const deleteAd = async (req, res) => {
+    const ad = await Ad.findByIdAndUpdate(req.params.id, { deleteFlag: 1, isActive: false }, { new: true });
+    if (!ad) {
+        return res.status(404).json({ success: false, message: 'الإعلان غير موجود' });
+    }
+    res.json({ success: true, message: 'تم حذف الإعلان بنجاح' });
+};
+
+// @desc    Toggle ad active status
+// @route   PATCH /api/dashboard/ads/:id/toggle-status
+// @access  Private (manageAds permission)
+export const toggleAdStatus = async (req, res) => {
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) {
+        return res.status(404).json({ success: false, message: 'الإعلان غير موجود' });
+    }
+    ad.isActive = !ad.isActive;
+    await ad.save();
+    res.json({ success: true, data: ad, message: ad.isActive ? 'تم تفعيل الإعلان' : 'تم تعطيل الإعلان' });
 };
